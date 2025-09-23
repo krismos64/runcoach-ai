@@ -1,0 +1,53 @@
+{
+  "name": "@runcoach-ai/api",
+  "version": "2.0.0",
+  "description": "RunCoach AI - API Backend avec architecture moderne",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon --exec tsx src/server.simple.ts",
+    "dev:simple": "tsx src/server.simple.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"Lint à implémenter\"",
+    "clean": "rm -rf dist node_modules"
+  },
+  "keywords": ["api", "runcoach", "ai", "fitness", "backend"],
+  "author": "Christophe",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.5.2",
+    "@types/xml2js": "^0.4.14",
+    "bcryptjs": "^3.0.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.2",
+    "multer": "^2.0.2",
+    "nodemon": "^3.1.10",
+    "pino": "^9.11.0",
+    "pino-http": "^10.5.0",
+    "pino-pretty": "^13.1.1",
+    "reflect-metadata": "^0.2.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "xml2js": "^0.6.2",
+    "xss-clean": "^0.1.4",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/express-rate-limit": "^5.1.3"
+  }
+}

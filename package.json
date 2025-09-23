@@ -1,0 +1,32 @@
+{
+  "name": "runcoach-ai-monorepo",
+  "version": "2.0.0",
+  "description": "RunCoach AI - Monorepo avec API Node.js et Frontend React",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/api",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:web": "npm run dev --workspace=packages/web",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build --workspace=packages/api",
+    "build:web": "npm run build --workspace=packages/web",
+    "start": "npm run start --workspace=packages/api",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["runcoach", "ai", "fitness", "running", "monorepo"],
+  "author": "Christophe",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
