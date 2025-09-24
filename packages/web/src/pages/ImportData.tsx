@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useData } from '../contexts/DataContext';
 import type { WorkoutData } from '../contexts/DataContext';
+import JSZip from 'jszip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -236,6 +237,57 @@ const parseCSVFile = (csvContent: string): WorkoutData[] => {
   return workouts;
 };
 
+const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
+  const workouts: WorkoutData[] = [];
+
+  try {
+    const zip = new JSZip();
+    const zipContent = await zip.loadAsync(file);
+
+    // Parcourir tous les fichiers dans le ZIP
+    for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
+      if (zipEntry.dir) continue; // Ignorer les dossiers
+
+      const fileExtension = filename.split('.').pop()?.toLowerCase();
+
+      // Traiter seulement les fichiers supportés
+      if (!['gpx', 'tcx', 'csv'].includes(fileExtension || '')) continue;
+
+      try {
+        const fileContent = await zipEntry.async('text');
+        let fileWorkouts: WorkoutData[] = [];
+
+        switch (fileExtension) {
+          case 'gpx':
+            fileWorkouts = parseGPXFile(fileContent);
+            break;
+          case 'tcx':
+            fileWorkouts = parseTCXFile(fileContent);
+            break;
+          case 'csv':
+            fileWorkouts = parseCSVFile(fileContent);
+            break;
+        }
+
+        // Ajouter un préfixe au nom du fichier dans les notes
+        fileWorkouts.forEach(workout => {
+          workout.notes = `${workout.notes} - Fichier: ${filename}`;
+          workout.id = `zip_${workout.id}`;
+        });
+
+        workouts.push(...fileWorkouts);
+      } catch (error) {
+        console.warn(`Erreur lors du traitement du fichier ${filename} dans le ZIP:`, error);
+        // Continuer avec les autres fichiers
+      }
+    }
+  } catch (error) {
+    throw new Error(`Erreur lors de l'extraction du fichier ZIP: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+  }
+
+  return workouts;
+};
+
 const ImportData: React.FC = () => {
   const { updateWorkouts, userData } = useData();
   const [files, setFiles] = useState<ImportFile[]>([]);
@@ -258,7 +310,7 @@ const ImportData: React.FC = () => {
       icon: Watch,
       description: 'Synchronisez avec votre compte Garmin Connect',
       supported: true,
-      fileTypes: ['fit', 'tcx', 'gpx']
+      fileTypes: ['fit', 'tcx', 'gpx', 'zip']
     },
     {
       id: 'strava',
@@ -266,7 +318,7 @@ const ImportData: React.FC = () => {
       icon: Activity,
       description: 'Importez vos activités depuis Strava',
       supported: true,
-      fileTypes: ['gpx', 'tcx', 'fit']
+      fileTypes: ['gpx', 'tcx', 'fit', 'zip']
     },
     {
       id: 'polar',
@@ -274,7 +326,7 @@ const ImportData: React.FC = () => {
       icon: Heart,
       description: 'Connectez votre compte Polar Flow',
       supported: false,
-      fileTypes: ['tcx', 'gpx']
+      fileTypes: ['tcx', 'gpx', 'csv', 'zip']
     }
   ];
 
@@ -339,34 +391,47 @@ const ImportData: React.FC = () => {
           f.id === fileImport.id ? { ...f, progress: 25 } : f
         ));
 
-        // Lire le contenu du fichier
-        const fileContent = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string || '');
-          reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
-          reader.readAsText(realFile);
-        });
-
-        setFiles(prev => prev.map(f =>
-          f.id === fileImport.id ? { ...f, progress: 50 } : f
-        ));
-
         // Parser selon le type de fichier
         let parsedWorkouts: WorkoutData[] = [];
         const fileExtension = realFile.name.split('.').pop()?.toLowerCase();
 
-        switch (fileExtension) {
-          case 'gpx':
-            parsedWorkouts = parseGPXFile(fileContent);
-            break;
-          case 'tcx':
-            parsedWorkouts = parseTCXFile(fileContent);
-            break;
-          case 'csv':
-            parsedWorkouts = parseCSVFile(fileContent);
-            break;
-          default:
-            throw new Error(`Format de fichier non supporté: ${fileExtension}`);
+        if (fileExtension === 'zip') {
+          // Traitement spécial pour les fichiers ZIP
+          setFiles(prev => prev.map(f =>
+            f.id === fileImport.id ? { ...f, progress: 40 } : f
+          ));
+
+          parsedWorkouts = await parseZIPFile(realFile);
+
+          setFiles(prev => prev.map(f =>
+            f.id === fileImport.id ? { ...f, progress: 70 } : f
+          ));
+        } else {
+          // Traitement normal pour les autres fichiers
+          const fileContent = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string || '');
+            reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
+            reader.readAsText(realFile);
+          });
+
+          setFiles(prev => prev.map(f =>
+            f.id === fileImport.id ? { ...f, progress: 50 } : f
+          ));
+
+          switch (fileExtension) {
+            case 'gpx':
+              parsedWorkouts = parseGPXFile(fileContent);
+              break;
+            case 'tcx':
+              parsedWorkouts = parseTCXFile(fileContent);
+              break;
+            case 'csv':
+              parsedWorkouts = parseCSVFile(fileContent);
+              break;
+            default:
+              throw new Error(`Format de fichier non supporté: ${fileExtension}`);
+          }
         }
 
         setFiles(prev => prev.map(f =>
@@ -380,6 +445,14 @@ const ImportData: React.FC = () => {
         // Ajouter les workouts au DataContext
         const currentWorkouts = userData.workouts || [];
         const newWorkouts = [...currentWorkouts, ...parsedWorkouts];
+
+        console.log('Import Debug:', {
+          currentWorkoutsCount: currentWorkouts.length,
+          parsedWorkoutsCount: parsedWorkouts.length,
+          newWorkoutsCount: newWorkouts.length,
+          sampleParsedWorkout: parsedWorkouts[0]
+        });
+
         updateWorkouts(newWorkouts);
 
         // Calculer les statistiques pour l'affichage
@@ -603,7 +676,7 @@ const ImportData: React.FC = () => {
               <input
                 type="file"
                 multiple
-                accept=".xml,.zip,.fit,.tcx,.gpx"
+                accept=".xml,.zip,.fit,.tcx,.gpx,.csv"
                 onChange={handleFileSelect}
                 className="hidden"
                 id="file-upload"

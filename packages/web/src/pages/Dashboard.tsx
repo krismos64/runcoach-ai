@@ -150,7 +150,7 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Distance totale',
-      value: `${stats.totalDistance}`,
+      value: `${stats.totalDistance.toFixed(2)}`,
       unit: 'km',
       change: '+8.5%',
       changeType: 'up',

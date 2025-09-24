@@ -134,20 +134,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateWorkouts = (workouts: WorkoutData[]) => {
-    const newData = { ...userData, workouts };
+    console.log('DataContext updateWorkouts called with', workouts.length, 'workouts');
+
+    // Calculer les nouvelles stats avec les nouveaux workouts
+    const newStats = calculateStats(workouts);
+    console.log('Calculated stats:', newStats);
+
+    // Créer les nouvelles données complètes
+    const newData = { ...userData, workouts, stats: newStats };
+
+    // Mettre à jour l'état et sauvegarder
     setUserData(newData);
     saveUserData(newData);
-    updateStats();
+
+    console.log('UserData updated, localStorage saved');
   };
 
-  const addWorkout = (workout: WorkoutData) => {
-    const newWorkouts = [...userData.workouts, workout];
-    updateWorkouts(newWorkouts);
-  };
-
-  const updateStats = () => {
-    if (!userData.workouts.length) {
-      const emptyStats = {
+  const calculateStats = (workouts: WorkoutData[]) => {
+    if (!workouts.length) {
+      return {
         totalDistance: 0,
         totalWorkouts: 0,
         averagePace: "0:00",
@@ -156,18 +161,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         monthlyDistances: [],
         weeklyProgress: []
       };
-      const newData = { ...userData, stats: emptyStats };
-      setUserData(newData);
-      saveUserData(newData);
-      return;
     }
 
-    const totalDistance = userData.workouts.reduce((sum, w) => sum + w.distance, 0);
-    const totalTime = userData.workouts.reduce((sum, w) => sum + w.duration, 0);
-    const totalWorkouts = userData.workouts.length;
+    const totalDistance = workouts.reduce((sum, w) => sum + w.distance, 0);
+    const totalTime = workouts.reduce((sum, w) => sum + w.duration, 0);
+    const totalWorkouts = workouts.length;
 
     // Calcul de la pace moyenne
-    const averagePaceSeconds = userData.workouts.reduce((sum, w) => {
+    const averagePaceSeconds = workouts.reduce((sum, w) => {
       const [min, sec] = w.pace.split(':').map(Number);
       return sum + (min * 60 + sec);
     }, 0) / totalWorkouts;
@@ -179,11 +180,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Distance de la semaine courante
     const now = new Date();
     const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
-    const currentWeekDistance = userData.workouts
+    const currentWeekDistance = workouts
       .filter(w => new Date(w.date) >= weekStart)
       .reduce((sum, w) => sum + w.distance, 0);
 
-    const newStats = {
+    return {
       totalDistance,
       totalWorkouts,
       averagePace,
@@ -192,7 +193,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       monthlyDistances: [], // À calculer selon les besoins
       weeklyProgress: [] // À calculer selon les besoins
     };
+  };
 
+  const addWorkout = (workout: WorkoutData) => {
+    const newWorkouts = [...userData.workouts, workout];
+    updateWorkouts(newWorkouts);
+  };
+
+  const updateStats = () => {
+    const newStats = calculateStats(userData.workouts);
     const newData = { ...userData, stats: newStats };
     setUserData(newData);
     saveUserData(newData);
