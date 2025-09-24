@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from 'react';
+import { useData } from '../contexts/DataContext';
+import type { WorkoutData } from '../contexts/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -23,6 +25,7 @@ interface ImportFile {
   type: string;
   status: 'pending' | 'processing' | 'success' | 'error';
   progress: number;
+  file?: File; // Ajout du fichier réel
   data?: {
     workouts: number;
     distance: number;
@@ -42,7 +45,199 @@ interface DataSource {
   fileTypes: string[];
 }
 
+// Fonctions de parsing des fichiers
+const parseGPXFile = (xmlContent: string): WorkoutData[] => {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+  const workouts: WorkoutData[] = [];
+
+  const tracks = xmlDoc.getElementsByTagName('trk');
+
+  for (let i = 0; i < tracks.length; i++) {
+    const track = tracks[i];
+    const segments = track.getElementsByTagName('trkseg');
+
+    for (let j = 0; j < segments.length; j++) {
+      const points = segments[j].getElementsByTagName('trkpt');
+
+      if (points.length === 0) continue;
+
+      const firstPoint = points[0];
+      const lastPoint = points[points.length - 1];
+
+      const startTime = firstPoint.getElementsByTagName('time')[0]?.textContent;
+      const endTime = lastPoint.getElementsByTagName('time')[0]?.textContent;
+
+      if (!startTime || !endTime) continue;
+
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const duration = Math.round((end.getTime() - start.getTime()) / 1000 / 60); // en minutes
+
+      // Calcul de la distance
+      let totalDistance = 0;
+      for (let k = 1; k < points.length; k++) {
+        const prevPoint = points[k - 1];
+        const currPoint = points[k];
+
+        const lat1 = parseFloat(prevPoint.getAttribute('lat') || '0');
+        const lon1 = parseFloat(prevPoint.getAttribute('lon') || '0');
+        const lat2 = parseFloat(currPoint.getAttribute('lat') || '0');
+        const lon2 = parseFloat(currPoint.getAttribute('lon') || '0');
+
+        // Formule de Haversine pour calculer la distance
+        const R = 6371; // Rayon de la Terre en km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        totalDistance += R * c;
+      }
+
+      // Calcul de la pace (min/km)
+      const paceMinPerKm = duration / totalDistance;
+      const paceMin = Math.floor(paceMinPerKm);
+      const paceSec = Math.round((paceMinPerKm - paceMin) * 60);
+      const pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+
+      const workout: WorkoutData = {
+        id: `gpx_${Date.now()}_${i}_${j}`,
+        date: start.toISOString().split('T')[0],
+        type: 'course',
+        duration,
+        distance: Math.round(totalDistance * 100) / 100,
+        pace,
+        notes: `Importé depuis GPX - ${track.getElementsByTagName('name')[0]?.textContent || 'Entraînement'}`
+      };
+
+      workouts.push(workout);
+    }
+  }
+
+  return workouts;
+};
+
+const parseTCXFile = (xmlContent: string): WorkoutData[] => {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+  const workouts: WorkoutData[] = [];
+
+  const activities = xmlDoc.getElementsByTagName('Activity');
+
+  for (let i = 0; i < activities.length; i++) {
+    const activity = activities[i];
+    const laps = activity.getElementsByTagName('Lap');
+
+    for (let j = 0; j < laps.length; j++) {
+      const lap = laps[j];
+      const startTimeAttr = lap.getAttribute('StartTime');
+
+      if (!startTimeAttr) continue;
+
+      const startTime = new Date(startTimeAttr);
+      const totalTimeSeconds = parseFloat(lap.getElementsByTagName('TotalTimeSeconds')[0]?.textContent || '0');
+      const distanceMeters = parseFloat(lap.getElementsByTagName('DistanceMeters')[0]?.textContent || '0');
+      const avgHeartRate = parseFloat(lap.getElementsByTagName('AverageHeartRateBpm')[0]?.getElementsByTagName('Value')[0]?.textContent || '0');
+      const calories = parseFloat(lap.getElementsByTagName('Calories')[0]?.textContent || '0');
+
+      const duration = Math.round(totalTimeSeconds / 60); // en minutes
+      const distance = Math.round(distanceMeters / 10) / 100; // en km
+
+      // Calcul de la pace
+      const paceMinPerKm = duration / distance;
+      const paceMin = Math.floor(paceMinPerKm);
+      const paceSec = Math.round((paceMinPerKm - paceMin) * 60);
+      const pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+
+      const sport = activity.getAttribute('Sport') || 'Running';
+      let type: WorkoutData['type'] = 'course';
+      if (sport.toLowerCase().includes('bike')) type = 'endurance';
+
+      const workout: WorkoutData = {
+        id: `tcx_${Date.now()}_${i}_${j}`,
+        date: startTime.toISOString().split('T')[0],
+        type,
+        duration,
+        distance,
+        pace,
+        heartRate: avgHeartRate > 0 ? Math.round(avgHeartRate) : undefined,
+        calories: calories > 0 ? Math.round(calories) : undefined,
+        notes: `Importé depuis TCX - ${sport}`
+      };
+
+      workouts.push(workout);
+    }
+  }
+
+  return workouts;
+};
+
+const parseCSVFile = (csvContent: string): WorkoutData[] => {
+  const lines = csvContent.split('\n');
+  const workouts: WorkoutData[] = [];
+
+  if (lines.length < 2) return workouts;
+
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',');
+    if (values.length < headers.length) continue;
+
+    const data: any = {};
+    headers.forEach((header, index) => {
+      data[header] = values[index]?.trim();
+    });
+
+    // Mapping flexible des colonnes
+    const date = data['date'] || data['workout_date'] || data['start_date'];
+    const distance = parseFloat(data['distance'] || data['distance_km'] || data['distance_miles'] || '0');
+    const duration = parseFloat(data['duration'] || data['time'] || data['duration_minutes'] || '0');
+    const pace = data['pace'] || data['avg_pace'];
+    const type = data['type'] || data['workout_type'] || data['activity_type'] || 'course';
+    const heartRate = parseFloat(data['heart_rate'] || data['avg_hr'] || data['avg_heart_rate'] || '0');
+    const calories = parseFloat(data['calories'] || data['kcal'] || '0');
+
+    if (!date || distance <= 0 || duration <= 0) continue;
+
+    // Calcul de la pace si pas fournie
+    let finalPace = pace;
+    if (!finalPace && distance > 0 && duration > 0) {
+      const paceMinPerKm = duration / distance;
+      const paceMin = Math.floor(paceMinPerKm);
+      const paceSec = Math.round((paceMinPerKm - paceMin) * 60);
+      finalPace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+    }
+
+    // Mapping du type d'entraînement
+    let workoutType: WorkoutData['type'] = 'course';
+    const typeStr = type.toLowerCase();
+    if (typeStr.includes('interval') || typeStr.includes('fraction')) workoutType = 'fractionné';
+    else if (typeStr.includes('endurance') || typeStr.includes('long')) workoutType = 'endurance';
+    else if (typeStr.includes('recovery') || typeStr.includes('récup')) workoutType = 'récupération';
+
+    const workout: WorkoutData = {
+      id: `csv_${Date.now()}_${i}`,
+      date: new Date(date).toISOString().split('T')[0],
+      type: workoutType,
+      duration: Math.round(duration),
+      distance: Math.round(distance * 100) / 100,
+      pace: finalPace || '0:00',
+      heartRate: heartRate > 0 ? Math.round(heartRate) : undefined,
+      calories: calories > 0 ? Math.round(calories) : undefined,
+      notes: 'Importé depuis CSV'
+    };
+
+    workouts.push(workout);
+  }
+
+  return workouts;
+};
+
 const ImportData: React.FC = () => {
+  const { updateWorkouts, userData } = useData();
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -115,7 +310,8 @@ const ImportData: React.FC = () => {
       size: file.size,
       type: file.type,
       status: 'pending',
-      progress: 0
+      progress: 0,
+      file: file // Stocker le fichier réel
     }));
 
     setFiles(prev => [...prev, ...newFiles]);
@@ -125,50 +321,106 @@ const ImportData: React.FC = () => {
   const processFiles = async (filesToProcess: ImportFile[]) => {
     setIsProcessing(true);
 
-    for (const file of filesToProcess) {
+    for (const fileImport of filesToProcess) {
       // Update file status to processing
       setFiles(prev => prev.map(f =>
-        f.id === file.id ? { ...f, status: 'processing', progress: 0 } : f
+        f.id === fileImport.id ? { ...f, status: 'processing', progress: 0 } : f
       ));
 
-      // Simulate file processing with progress
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+      try {
+        const realFile = fileImport.file;
+
+        if (!realFile) {
+          throw new Error('Fichier introuvable');
+        }
+
+        // Mise à jour du progress
         setFiles(prev => prev.map(f =>
-          f.id === file.id ? { ...f, progress } : f
+          f.id === fileImport.id ? { ...f, progress: 25 } : f
         ));
-      }
 
-      // Simulate processing result
-      const isSuccess = Math.random() > 0.2; // 80% success rate
+        // Lire le contenu du fichier
+        const fileContent = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
+          reader.readAsText(realFile);
+        });
 
-      if (isSuccess) {
-        const mockData = {
-          workouts: Math.floor(Math.random() * 100) + 50,
-          distance: Math.floor(Math.random() * 500) + 200,
-          duration: Math.floor(Math.random() * 2000) + 1000,
-          startDate: '2023-01-01',
-          endDate: '2024-01-15'
+        setFiles(prev => prev.map(f =>
+          f.id === fileImport.id ? { ...f, progress: 50 } : f
+        ));
+
+        // Parser selon le type de fichier
+        let parsedWorkouts: WorkoutData[] = [];
+        const fileExtension = realFile.name.split('.').pop()?.toLowerCase();
+
+        switch (fileExtension) {
+          case 'gpx':
+            parsedWorkouts = parseGPXFile(fileContent);
+            break;
+          case 'tcx':
+            parsedWorkouts = parseTCXFile(fileContent);
+            break;
+          case 'csv':
+            parsedWorkouts = parseCSVFile(fileContent);
+            break;
+          default:
+            throw new Error(`Format de fichier non supporté: ${fileExtension}`);
+        }
+
+        setFiles(prev => prev.map(f =>
+          f.id === fileImport.id ? { ...f, progress: 75 } : f
+        ));
+
+        if (parsedWorkouts.length === 0) {
+          throw new Error('Aucun entraînement trouvé dans le fichier');
+        }
+
+        // Ajouter les workouts au DataContext
+        const currentWorkouts = userData.workouts || [];
+        const newWorkouts = [...currentWorkouts, ...parsedWorkouts];
+        updateWorkouts(newWorkouts);
+
+        // Calculer les statistiques pour l'affichage
+        const totalDistance = parsedWorkouts.reduce((sum, w) => sum + w.distance, 0);
+        const totalDuration = parsedWorkouts.reduce((sum, w) => sum + w.duration, 0);
+
+        const dates = parsedWorkouts.map(w => new Date(w.date)).sort((a, b) => a.getTime() - b.getTime());
+        const startDate = dates[0]?.toISOString().split('T')[0] || '';
+        const endDate = dates[dates.length - 1]?.toISOString().split('T')[0] || '';
+
+        const importData = {
+          workouts: parsedWorkouts.length,
+          distance: Math.round(totalDistance * 100) / 100,
+          duration: totalDuration,
+          startDate,
+          endDate
         };
 
         setFiles(prev => prev.map(f =>
-          f.id === file.id ? {
+          f.id === fileImport.id ? {
             ...f,
             status: 'success',
             progress: 100,
-            data: mockData
+            data: importData
           } : f
         ));
-      } else {
+
+      } catch (error) {
+        console.error('Erreur lors du traitement du fichier:', error);
         setFiles(prev => prev.map(f =>
-          f.id === file.id ? {
+          f.id === fileImport.id ? {
             ...f,
             status: 'error',
             progress: 0,
-            error: 'Erreur lors du traitement du fichier. Format non supporté.'
+            error: error instanceof Error ? error.message : 'Erreur inconnue lors du traitement'
           } : f
         ));
       }
+
+      // Petit délai pour voir les changements de progress
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     setIsProcessing(false);

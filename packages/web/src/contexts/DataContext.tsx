@@ -56,7 +56,6 @@ interface DataContextType {
   updateStats: () => void;
   addGoal: (goal: GoalData) => void;
   updateGoal: (goalId: string, updates: Partial<GoalData>) => void;
-  importData: (data: any) => void;
   resetUserData: () => void;
   isDataLoaded: boolean;
 }
@@ -215,11 +214,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveUserData(newData);
   };
 
-  const importData = (data: any) => {
-    // Logique d'import des données (GPX, TCX, etc.)
-    // À implémenter selon le format des données importées
-    console.log('Import de données:', data);
-  };
 
   const resetUserData = () => {
     const emptyData = getEmptyUserData(user);
@@ -237,7 +231,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateStats,
       addGoal,
       updateGoal,
-      importData,
       resetUserData,
       isDataLoaded
     }}>
