@@ -112,31 +112,59 @@ const Stats: React.FC = () => {
     }
   }, [isDataLoaded]);
 
-  // Générer des statistiques basées sur les données réelles
-  const statsData: StatsData = userData.workouts.length > 0 ? {
+  // Fonction pour filtrer les workouts par période
+  const getFilteredWorkouts = (workouts: any[], range: 'week' | 'month' | 'year') => {
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (range) {
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'year':
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+    }
+
+    return workouts.filter(workout => new Date(workout.date) >= startDate);
+  };
+
+  // Générer des statistiques basées sur les données réelles et filtrées
+  const filteredWorkouts = getFilteredWorkouts(userData.workouts, timeRange);
+  const statsData: StatsData = filteredWorkouts.length > 0 ? {
     performance: {
-      totalDistance: userData.stats.totalDistance,
-      totalTime: userData.stats.totalTime,
-      totalSessions: userData.stats.totalWorkouts,
-      avgPace: userData.stats.averagePace,
-      bestPace: userData.workouts.length > 0
-        ? userData.workouts.reduce((best, workout) => {
-            const [min, sec] = workout.pace.split(':').map(Number);
-            const seconds = min * 60 + sec;
-            const [bestMin, bestSec] = best.split(':').map(Number);
-            const bestSeconds = bestMin * 60 + bestSec;
-            return seconds < bestSeconds ? workout.pace : best;
-          }, userData.workouts[0].pace)
-        : '0:00',
-      totalCalories: userData.workouts.reduce((sum, w) => sum + (w.calories || 0), 0),
-      avgHeartRate: userData.workouts.length > 0
-        ? Math.round(userData.workouts
+      totalDistance: filteredWorkouts.reduce((sum, w) => sum + w.distance, 0),
+      totalTime: filteredWorkouts.reduce((sum, w) => sum + w.duration, 0),
+      totalSessions: filteredWorkouts.length,
+      avgPace: (() => {
+        const totalSeconds = filteredWorkouts.reduce((sum, w) => {
+          const [min, sec] = w.pace.split(':').map(Number);
+          return sum + (min * 60 + sec);
+        }, 0);
+        const avgSeconds = totalSeconds / filteredWorkouts.length;
+        const avgMin = Math.floor(avgSeconds / 60);
+        const avgSec = Math.floor(avgSeconds % 60);
+        return `${avgMin}:${avgSec.toString().padStart(2, '0')}`;
+      })(),
+      bestPace: filteredWorkouts.reduce((best, workout) => {
+        const [min, sec] = workout.pace.split(':').map(Number);
+        const seconds = min * 60 + sec;
+        const [bestMin, bestSec] = best.split(':').map(Number);
+        const bestSeconds = bestMin * 60 + bestSec;
+        return seconds < bestSeconds ? workout.pace : best;
+      }, filteredWorkouts[0].pace),
+      totalCalories: filteredWorkouts.reduce((sum, w) => sum + (w.calories || 0), 0),
+      avgHeartRate: filteredWorkouts.filter(w => w.heartRate).length > 0
+        ? Math.round(filteredWorkouts
             .filter(w => w.heartRate)
             .reduce((sum, w) => sum + (w.heartRate || 0), 0) /
-          userData.workouts.filter(w => w.heartRate).length)
+          filteredWorkouts.filter(w => w.heartRate).length)
         : 0,
-      maxHeartRate: userData.workouts.length > 0
-        ? Math.max(...userData.workouts.filter(w => w.heartRate).map(w => w.heartRate || 0))
+      maxHeartRate: filteredWorkouts.filter(w => w.heartRate).length > 0
+        ? Math.max(...filteredWorkouts.filter(w => w.heartRate).map(w => w.heartRate || 0))
         : 0
     },
     trends: {
@@ -145,13 +173,107 @@ const Stats: React.FC = () => {
       consistencyScore: 0, // À calculer plus tard
       fitnessLevel: 0 // À calculer plus tard
     },
-    monthlyData: userData.stats.monthlyDistances || [],
-    weeklyData: userData.stats.weeklyProgress || [],
-    paceZones: [
-      { zone: 'Aucune donnée', time: 0, percentage: 100, color: '#6B7280' }
-    ],
+    monthlyData: (() => {
+      // Générer les données mensuelles basées sur les workouts filtrés
+      const monthlyStats = filteredWorkouts.reduce((acc, workout) => {
+        const date = new Date(workout.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            month: date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
+            distance: 0,
+            sessions: 0,
+            avgPace: 0,
+            calories: 0,
+            totalPaceSeconds: 0
+          };
+        }
+
+        acc[monthKey].distance += workout.distance;
+        acc[monthKey].sessions += 1;
+        acc[monthKey].calories += workout.calories || 0;
+
+        const [min, sec] = workout.pace.split(':').map(Number);
+        acc[monthKey].totalPaceSeconds += (min * 60 + sec);
+
+        return acc;
+      }, {} as Record<string, any>);
+
+      return Object.values(monthlyStats).map((month: any) => ({
+        ...month,
+        avgPace: Math.round(month.totalPaceSeconds / month.sessions),
+        distance: Math.round(month.distance * 100) / 100
+      })).sort((a: any, b: any) => a.month.localeCompare(b.month));
+    })(),
+    weeklyData: (() => {
+      // Générer les données hebdomadaires basées sur les workouts filtrés
+      const weeklyStats = filteredWorkouts.reduce((acc, workout) => {
+        const date = new Date(workout.date);
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        const weekKey = weekStart.toISOString().split('T')[0];
+
+        if (!acc[weekKey]) {
+          acc[weekKey] = {
+            week: weekStart.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
+            distance: 0,
+            intensity: 0,
+            sessions: 0
+          };
+        }
+
+        acc[weekKey].distance += workout.distance;
+        acc[weekKey].sessions += 1;
+        // Intensité basée sur la durée et la fréquence cardiaque si disponible
+        acc[weekKey].intensity = Math.min(100, (workout.heartRate || 50) / 2);
+
+        return acc;
+      }, {} as Record<string, any>);
+
+      return Object.values(weeklyStats).map((week: any) => ({
+        ...week,
+        distance: Math.round(week.distance * 100) / 100
+      })).sort((a: any, b: any) => a.week.localeCompare(b.week));
+    })(),
+    paceZones: (() => {
+      if (filteredWorkouts.length === 0) {
+        return [{ zone: 'Aucune donnée', time: 0, percentage: 100, color: '#6B7280' }];
+      }
+
+      // Calculer les zones de pace basées sur les données réelles
+      const paceSeconds = filteredWorkouts.map(w => {
+        const [min, sec] = w.pace.split(':').map(Number);
+        return min * 60 + sec;
+      }).sort((a, b) => a - b);
+
+      const avgPace = paceSeconds.reduce((sum, pace) => sum + pace, 0) / paceSeconds.length;
+
+      // Définir les zones de pace (en secondes par km)
+      const zones = [
+        { name: 'Très rapide', min: 0, max: avgPace - 60, color: '#EF4444' },
+        { name: 'Rapide', min: avgPace - 60, max: avgPace - 20, color: '#F59E0B' },
+        { name: 'Modérée', min: avgPace - 20, max: avgPace + 20, color: '#10B981' },
+        { name: 'Lente', min: avgPace + 20, max: avgPace + 60, color: '#3B82F6' },
+        { name: 'Très lente', min: avgPace + 60, max: Infinity, color: '#8B5CF6' }
+      ];
+
+      // Calculer les pourcentages pour chaque zone
+      const zoneStats = zones.map(zone => {
+        const workoutsInZone = paceSeconds.filter(pace => pace >= zone.min && pace < zone.max);
+        const percentage = Math.round((workoutsInZone.length / paceSeconds.length) * 100);
+        return {
+          zone: zone.name,
+          time: workoutsInZone.length,
+          percentage,
+          color: zone.color
+        };
+      }).filter(zone => zone.percentage > 0); // Ne garder que les zones avec des données
+
+      return zoneStats.length > 0 ? zoneStats : [{ zone: 'Aucune donnée', time: 0, percentage: 100, color: '#6B7280' }];
+    })(),
     workoutTypes: (() => {
-      const typeCount = userData.workouts.reduce((acc, workout) => {
+      const typeCount = filteredWorkouts.reduce((acc, workout) => {
         const type = workout.type.charAt(0).toUpperCase() + workout.type.slice(1);
         acc[type] = (acc[type] || 0) + 1;
         return acc;
@@ -168,14 +290,59 @@ const Stats: React.FC = () => {
                type === 'Endurance' ? '#3B82F6' : '#EF4444'
       }));
     })(),
-    fitnessMetrics: [
-      { metric: 'Endurance', current: 0, max: 100 },
-      { metric: 'Vitesse', current: 0, max: 100 },
-      { metric: 'Force', current: 0, max: 100 },
-      { metric: 'Récupération', current: 0, max: 100 },
-      { metric: 'Technique', current: 0, max: 100 },
-      { metric: 'Mental', current: 0, max: 100 }
-    ]
+    fitnessMetrics: (() => {
+      // Calculs IA basés sur les données réelles d'entraînement
+
+      // Endurance : basée sur la distance totale et la fréquence des entraînements longs
+      const longRuns = filteredWorkouts.filter(w => w.distance > 10).length;
+      const totalDistance = filteredWorkouts.reduce((sum, w) => sum + w.distance, 0);
+      const enduranceScore = Math.min(100, Math.round((totalDistance / filteredWorkouts.length * 2) + (longRuns * 10)));
+
+      // Vitesse : basée sur la pace moyenne et les entraînements fractionnés
+      const intervalWorkouts = filteredWorkouts.filter(w => w.type === 'fractionné').length;
+      const avgPaceSeconds = filteredWorkouts.reduce((sum, w) => {
+        const [min, sec] = w.pace.split(':').map(Number);
+        return sum + (min * 60 + sec);
+      }, 0) / filteredWorkouts.length;
+      // Inversion : plus la pace est rapide, plus le score est élevé (6:00 = 80pts, 4:00 = 100pts)
+      const speedScore = Math.min(100, Math.max(0, Math.round(100 - (avgPaceSeconds - 240) / 3.6) + (intervalWorkouts * 5)));
+
+      // Force : basée sur les entraînements en côte, la régularité et l'intensité
+      const regularityScore = Math.min(100, (filteredWorkouts.length / (timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 365)) * 100);
+      const forceScore = Math.round((regularityScore * 0.7) + (intervalWorkouts * 3));
+
+      // Récupération : basée sur la FC moyenne et les entraînements de récupération
+      const recoveryWorkouts = filteredWorkouts.filter(w => w.type === 'récupération').length;
+      const avgHR = filteredWorkouts.filter(w => w.heartRate).length > 0
+        ? filteredWorkouts.reduce((sum, w) => sum + (w.heartRate || 0), 0) / filteredWorkouts.filter(w => w.heartRate).length
+        : 150;
+      // Plus la FC est basse, meilleure est la récupération
+      const recoveryScore = Math.min(100, Math.max(20, Math.round(100 - (avgHR - 120) / 2) + (recoveryWorkouts * 5)));
+
+      // Technique : basée sur la consistance de la pace et la variété des entraînements
+      const paceVariability = filteredWorkouts.reduce((sum, w, i, arr) => {
+        if (i === 0) return 0;
+        const currentPace = w.pace.split(':').reduce((min, sec) => parseInt(min) * 60 + parseInt(sec));
+        const prevPace = arr[i-1].pace.split(':').reduce((min, sec) => parseInt(min) * 60 + parseInt(sec));
+        return sum + Math.abs(currentPace - prevPace);
+      }, 0) / Math.max(1, filteredWorkouts.length - 1);
+      const workoutVariety = new Set(filteredWorkouts.map(w => w.type)).size;
+      const techniqueScore = Math.min(100, Math.max(30, Math.round(100 - (paceVariability / 10)) + (workoutVariety * 10)));
+
+      // Mental : basée sur la consistance des entraînements et la progression
+      const consistency = filteredWorkouts.length >= 3 ?
+        Math.min(100, (filteredWorkouts.length / Math.max(1, (timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 365) / 7)) * 30) : 20;
+      const mentalScore = Math.min(100, Math.max(40, Math.round(consistency + (longRuns * 5) + (intervalWorkouts * 3))));
+
+      return [
+        { metric: 'Endurance', current: enduranceScore, max: 100 },
+        { metric: 'Vitesse', current: speedScore, max: 100 },
+        { metric: 'Force', current: forceScore, max: 100 },
+        { metric: 'Récupération', current: recoveryScore, max: 100 },
+        { metric: 'Technique', current: techniqueScore, max: 100 },
+        { metric: 'Mental', current: mentalScore, max: 100 }
+      ];
+    })()
   } : {
     performance: {
       totalDistance: 0,
@@ -349,7 +516,7 @@ const Stats: React.FC = () => {
           {[
             {
               title: 'Distance totale',
-              value: `${statsData.performance.totalDistance}`,
+              value: `${statsData.performance.totalDistance.toFixed(2)}`,
               unit: 'km',
               change: `+${statsData.trends.distanceChange}%`,
               changeType: 'up',
