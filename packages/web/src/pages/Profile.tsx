@@ -34,7 +34,6 @@ interface UserProfile {
   primaryGoal: string;
   weeklyGoal: number;
   avatar?: string;
-  bio?: string;
 }
 
 interface PrivacySettings {
@@ -65,8 +64,7 @@ const Profile: React.FC = () => {
     maxHeartRate: 0,
     runningLevel: '',
     primaryGoal: '',
-    weeklyGoal: 0,
-    bio: ''
+    weeklyGoal: 0
   });
 
   const [privacy, setPrivacy] = useState<PrivacySettings>({
@@ -167,7 +165,14 @@ const Profile: React.FC = () => {
         <link rel="canonical" href="/profile" />
       </Helmet>
 
-      <div className="space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-800 text-white relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(16,185,129,0.15),transparent_50%),radial-gradient(circle_at_80%_20%,rgba(6,182,212,0.15),transparent_50%)]"></div>
+        <div className="absolute inset-0 opacity-30" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='rgba(16,185,129,0.03)' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }}></div>
+
+        <div className="relative z-10 space-y-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -175,8 +180,14 @@ const Profile: React.FC = () => {
           className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Mon profil</h1>
-            <p className="text-gray-600 mt-1">Gérez vos informations personnelles et préférences</p>
+            <motion.h1
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-4xl font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent mb-2"
+            >
+              Mon Profil 🏃‍♂️
+            </motion.h1>
+            <p className="text-gray-400">Personnalisez votre expérience d'entraînement</p>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -184,14 +195,14 @@ const Profile: React.FC = () => {
               <>
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-400 hover:text-white border border-white/20 rounded-xl transition-all duration-300 hover:border-emerald-400/50 hover:bg-white/5"
                 >
                   <X className="w-4 h-4" />
                   <span>Annuler</span>
                 </button>
                 <button
                   onClick={handleSave}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:scale-105"
                 >
                   <Save className="w-4 h-4" />
                   <span>Sauvegarder</span>
@@ -214,11 +225,11 @@ const Profile: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white shadow-2xl"
+          className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 text-white shadow-2xl hover:bg-white/8 transition-all duration-300"
         >
           <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
             <div className="relative">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
                 {profile.avatar ? (
                   <img
                     src={profile.avatar}
@@ -226,11 +237,11 @@ const Profile: React.FC = () => {
                     className="w-24 h-24 rounded-full object-cover"
                   />
                 ) : (
-                  <User className="w-12 h-12 text-white" />
+                  <User className="w-12 h-12 text-black" />
                 )}
               </div>
               {isEditing && (
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
+                <button className="absolute bottom-0 right-0 w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300">
                   <Camera className="w-4 h-4 text-white" />
                 </button>
               )}
@@ -238,23 +249,22 @@ const Profile: React.FC = () => {
 
             <div className="text-center md:text-left flex-1">
               <h2 className="text-2xl font-bold">{profile.firstName && profile.lastName ? `${profile.firstName} ${profile.lastName}` : 'Profil à compléter'}</h2>
-              <p className="text-blue-100 mb-4">{profile.bio || 'Ajoutez une bio pour vous présenter...'}</p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <div className="text-blue-100">Âge</div>
+                  <div className="text-emerald-100">Âge</div>
                   <div className="font-semibold">{profile.dateOfBirth ? `${calculateAge(profile.dateOfBirth)} ans` : '-'}</div>
                 </div>
                 <div>
-                  <div className="text-blue-100">Niveau</div>
+                  <div className="text-emerald-100">Niveau</div>
                   <div className="font-semibold">{runningLevels.find(l => l.value === profile.runningLevel)?.label.split(' ')[0] || '-'}</div>
                 </div>
                 <div>
-                  <div className="text-blue-100">Objectif</div>
+                  <div className="text-emerald-100">Objectif</div>
                   <div className="font-semibold">{goals.find(g => g.value === profile.primaryGoal)?.label || '-'}</div>
                 </div>
                 <div>
-                  <div className="text-blue-100">IMC</div>
+                  <div className="text-emerald-100">IMC</div>
                   <div className="font-semibold">{bmi > 0 ? bmi : '-'}</div>
                 </div>
               </div>
@@ -267,7 +277,7 @@ const Profile: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden"
+          className="bg-white/5 backdrop-blur-sm rounded-2xl shadow-lg border border-white/10 overflow-hidden"
         >
           <div className="flex overflow-x-auto">
             {tabs.map((tab) => {
@@ -276,14 +286,22 @@ const Profile: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium transition-all duration-300 whitespace-nowrap relative ${
                     activeTab === tab.id
-                      ? 'text-blue-600 bg-blue-50 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'text-emerald-400 bg-white/10'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 to-teal-400"
+                      initial={false}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <Icon className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">{tab.label}</span>
                 </button>
               );
             })}
@@ -300,145 +318,140 @@ const Profile: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Personal Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Informations personnelles</h3>
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <User className="w-5 h-5 text-emerald-400" />
+                      Informations personnelles
+                    </h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">Prénom</label>
                         <input
                           type="text"
                           value={profile.firstName}
                           onChange={(e) => handleInputChange('firstName', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">Nom</label>
                         <input
                           type="text"
                           value={profile.lastName}
                           onChange={(e) => handleInputChange('lastName', e.target.value)}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-emerald-100 mb-2">Email</label>
                       <input
                         type="email"
                         value={profile.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date de naissance</label>
+                      <label className="block text-sm font-medium text-emerald-100 mb-2">Date de naissance</label>
                       <input
                         type="date"
                         value={profile.dateOfBirth}
                         onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+                      <label className="block text-sm font-medium text-emerald-100 mb-2">Téléphone</label>
                       <input
                         type="tel"
                         value={profile.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Localisation</label>
+                      <label className="block text-sm font-medium text-emerald-100 mb-2">Localisation</label>
                       <input
                         type="text"
                         value={profile.location}
                         onChange={(e) => handleInputChange('location', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                      <textarea
-                        value={profile.bio}
-                        onChange={(e) => handleInputChange('bio', e.target.value)}
-                        disabled={!isEditing}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-                        placeholder="Parlez-nous de votre passion pour la course..."
-                      />
-                    </div>
                   </div>
 
                   {/* Physical Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Données physiques</h3>
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <Weight className="w-5 h-5 text-emerald-400" />
+                      Données physiques
+                    </h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Poids (kg)</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">Poids (kg)</label>
                         <input
                           type="number"
                           value={profile.weight}
                           onChange={(e) => handleInputChange('weight', Number(e.target.value))}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Taille (cm)</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">Taille (cm)</label>
                         <input
                           type="number"
                           value={profile.height}
                           onChange={(e) => handleInputChange('height', Number(e.target.value))}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">FC repos (bpm)</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">FC repos (bpm)</label>
                         <input
                           type="number"
                           value={profile.restingHeartRate}
                           onChange={(e) => handleInputChange('restingHeartRate', Number(e.target.value))}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">FC max (bpm)</label>
+                        <label className="block text-sm font-medium text-emerald-100 mb-2">FC max (bpm)</label>
                         <input
                           type="number"
                           value={profile.maxHeartRate}
                           onChange={(e) => handleInputChange('maxHeartRate', Number(e.target.value))}
                           disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Niveau de course</label>
+                      <label className="block text-sm font-medium text-emerald-100 mb-2">Niveau de course</label>
                       <select
                         value={profile.runningLevel}
                         onChange={(e) => handleInputChange('runningLevel', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-white/5 text-white placeholder-gray-400 transition-all duration-300"
                       >
                         {runningLevels.map((level) => (
                           <option key={level.value} value={level.value}>
@@ -449,16 +462,19 @@ const Profile: React.FC = () => {
                     </div>
 
                     {/* Health Metrics */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <h4 className="font-medium text-blue-900 mb-3">Métriques de santé</h4>
+                    <div className="bg-emerald-500/10 rounded-lg p-4 border border-emerald-500/20">
+                      <h4 className="font-medium text-emerald-100 mb-3 flex items-center gap-2">
+                        <Heart className="w-4 h-4 text-emerald-400" />
+                        Métriques de santé
+                      </h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2">
-                          <Weight className="w-4 h-4 text-blue-600" />
-                          <span className="text-blue-800">IMC: {bmi > 0 ? bmi : 'Non calculé'}</span>
+                          <Weight className="w-4 h-4 text-emerald-400" />
+                          <span className="text-emerald-100">IMC: {bmi > 0 ? bmi : 'Non calculé'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Heart className="w-4 h-4 text-red-500" />
-                          <span className="text-blue-800">Zone cible: {profile.maxHeartRate > 0 ? `${Math.round(profile.maxHeartRate * 0.65)}-${Math.round(profile.maxHeartRate * 0.85)} bpm` : 'Non calculée'}</span>
+                          <Heart className="w-4 h-4 text-red-400" />
+                          <span className="text-emerald-100">Zone cible: {profile.maxHeartRate > 0 ? `${Math.round(profile.maxHeartRate * 0.65)}-${Math.round(profile.maxHeartRate * 0.85)} bpm` : 'Non calculée'}</span>
                         </div>
                       </div>
                     </div>
@@ -467,22 +483,22 @@ const Profile: React.FC = () => {
                     <div className="border-t pt-4">
                       <button
                         onClick={() => setShowPasswordChange(!showPasswordChange)}
-                        className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium"
+                        className="flex items-center space-x-2 text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-300"
                       >
                         <Lock className="w-4 h-4" />
                         <span>Changer le mot de passe</span>
                       </button>
 
                       {showPasswordChange && (
-                        <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="mt-4 space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe actuel</label>
+                            <label className="block text-sm font-medium text-emerald-100 mb-2">Mot de passe actuel</label>
                             <div className="relative">
                               <input
                                 type={showPasswords.current ? 'text' : 'password'}
                                 value={passwordData.currentPassword}
                                 onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 pr-10 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-400 transition-all duration-300"
                               />
                               <button
                                 type="button"
@@ -499,13 +515,13 @@ const Profile: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
+                            <label className="block text-sm font-medium text-emerald-100 mb-2">Nouveau mot de passe</label>
                             <div className="relative">
                               <input
                                 type={showPasswords.new ? 'text' : 'password'}
                                 value={passwordData.newPassword}
                                 onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 pr-10 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-400 transition-all duration-300"
                               />
                               <button
                                 type="button"
@@ -522,13 +538,13 @@ const Profile: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Confirmer le nouveau mot de passe</label>
+                            <label className="block text-sm font-medium text-emerald-100 mb-2">Confirmer le nouveau mot de passe</label>
                             <div className="relative">
                               <input
                                 type={showPasswords.confirm ? 'text' : 'password'}
                                 value={passwordData.confirmPassword}
                                 onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 pr-10 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white placeholder-gray-400 transition-all duration-300"
                               />
                               <button
                                 type="button"
@@ -547,13 +563,13 @@ const Profile: React.FC = () => {
                           <div className="flex justify-end space-x-3">
                             <button
                               onClick={() => setShowPasswordChange(false)}
-                              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                              className="px-4 py-2 text-gray-400 hover:text-white transition-colors duration-300"
                             >
                               Annuler
                             </button>
                             <button
                               onClick={handlePasswordChange}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black px-4 py-2 rounded-lg font-semibold shadow-lg shadow-emerald-500/25 transition-all duration-300"
                             >
                               Changer le mot de passe
                             </button>
@@ -573,11 +589,14 @@ const Profile: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-6"
               >
-                <h3 className="text-lg font-semibold text-gray-900">Objectifs d'entraînement</h3>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Target className="w-5 h-5 text-emerald-400" />
+                  Objectifs d'entraînement
+                </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Objectif principal</label>
+                    <label className="block text-sm font-medium text-emerald-100 mb-2">Objectif principal</label>
                     <select
                       value={profile.primaryGoal}
                       onChange={(e) => handleInputChange('primaryGoal', e.target.value)}
@@ -594,7 +613,7 @@ const Profile: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Objectif hebdomadaire (km)</label>
+                    <label className="block text-sm font-medium text-emerald-100 mb-2">Objectif hebdomadaire (km)</label>
                     <input
                       type="number"
                       value={profile.weeklyGoal}
@@ -636,11 +655,14 @@ const Profile: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-6"
               >
-                <h3 className="text-lg font-semibold text-gray-900">Paramètres de confidentialité</h3>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-emerald-400" />
+                  Paramètres de confidentialité
+                </h3>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Visibilité du profil</label>
+                    <label className="block text-sm font-medium text-emerald-100 mb-2">Visibilité du profil</label>
                     <select
                       value={privacy.profileVisibility}
                       onChange={(e) => handlePrivacyChange('profileVisibility', e.target.value)}
@@ -661,8 +683,8 @@ const Profile: React.FC = () => {
                       };
 
                       return (
-                        <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <span className="font-medium text-gray-900">
+                        <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                          <span className="font-medium text-white">
                             {labels[key as keyof typeof labels]}
                           </span>
                           <label className="relative inline-flex items-center cursor-pointer">
@@ -683,6 +705,7 @@ const Profile: React.FC = () => {
             )}
           </div>
         </motion.div>
+        </div>
       </div>
     </>
   );
