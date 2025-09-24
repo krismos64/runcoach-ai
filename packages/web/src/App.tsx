@@ -5,6 +5,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Workouts from './pages/Workouts';
 import TrainingPlan from './pages/TrainingPlan';
+import Stats from './pages/Stats';
+import Goals from './pages/Goals';
 import ImportData from './pages/ImportData';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
@@ -24,6 +26,8 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="workouts" element={<Workouts />} />
               <Route path="training-plan" element={<TrainingPlan />} />
+              <Route path="stats" element={<Stats />} />
+              <Route path="goals" element={<Goals />} />
               <Route path="import" element={<ImportData />} />
               <Route path="profile" element={<Profile />} />
             </Route>
