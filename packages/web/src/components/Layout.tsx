@@ -38,16 +38,16 @@ const Layout: React.FC = () => {
   }, []);
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home, color: 'from-blue-400 to-cyan-400' },
-    { name: 'Séances', href: '/workouts', icon: Activity, color: 'from-emerald-400 to-green-400' },
-    { name: 'Planning', href: '/training-plan', icon: Calendar, color: 'from-purple-400 to-pink-400' },
-    { name: 'Stats', href: '/stats', icon: TrendingUp, color: 'from-orange-400 to-red-400' },
-    { name: 'Objectifs', href: '/goals', icon: Trophy, color: 'from-yellow-400 to-amber-400' },
+    { name: 'Dashboard', href: '/app/dashboard', icon: Home, color: 'from-blue-400 to-cyan-400' },
+    { name: 'Séances', href: '/app/workouts', icon: Activity, color: 'from-emerald-400 to-green-400' },
+    { name: 'Planning', href: '/app/training-plan', icon: Calendar, color: 'from-purple-400 to-pink-400' },
+    { name: 'Stats', href: '/app/stats', icon: TrendingUp, color: 'from-orange-400 to-red-400' },
+    { name: 'Objectifs', href: '/app/goals', icon: Trophy, color: 'from-yellow-400 to-amber-400' },
   ];
 
   const secondaryNav = [
-    { name: 'Importer', href: '/import', icon: Upload },
-    { name: 'Profil', href: '/profile', icon: User },
+    { name: 'Importer', href: '/app/import', icon: Upload },
+    { name: 'Profil', href: '/app/profile', icon: User },
   ];
 
   const isActiveRoute = (href: string) => {
@@ -57,7 +57,7 @@ const Layout: React.FC = () => {
   const handleLogout = () => {
     logout();
     setIsMobileMenuOpen(false);
-    navigate('/login');
+    navigate('/');
   };
 
   return (
@@ -151,20 +151,6 @@ const Layout: React.FC = () => {
 
             {/* Right Side - User Actions */}
             <div className="hidden lg:flex items-center space-x-3">
-              {/* Live Stats */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center space-x-2 px-3 py-1.5 bg-emerald-900/30 rounded-full border border-emerald-500/20"
-              >
-                <Heart className="w-4 h-4 text-red-400 animate-pulse" />
-                <span className="text-xs text-emerald-300 font-medium">156 bpm</span>
-                <div className="w-px h-4 bg-emerald-500/20" />
-                <Zap className="w-4 h-4 text-yellow-400" />
-                <span className="text-xs text-emerald-300 font-medium">Zone 3</span>
-              </motion.div>
-
-
               {/* Settings */}
               <motion.button
                 whileHover={{ scale: 1.05, rotate: 90 }}
@@ -186,7 +172,6 @@ const Layout: React.FC = () => {
                     </span>
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-emerald-400 font-medium">Niveau 12</p>
                     <p className="text-xs text-emerald-100/70">{user?.name || 'Athlète'}</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" />

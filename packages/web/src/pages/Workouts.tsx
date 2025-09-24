@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -61,7 +62,7 @@ interface Workout {
 }
 
 const Workouts: React.FC = () => {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const { userData, isDataLoaded } = useData();
   const [filteredWorkouts, setFilteredWorkouts] = useState<Workout[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -69,100 +70,29 @@ const Workouts: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'chart'>('list');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for workouts
-  useEffect(() => {
-    const mockWorkouts: Workout[] = [
-      {
-        id: '1',
-        date: '2024-01-15',
-        type: 'Endurance',
-        distance: 10.5,
-        duration: 52,
-        pace: '4:57',
-        avgHeartRate: 145,
-        calories: 687,
-        elevation: 120,
-        weather: 'Ensoleillé',
-        route: {
-          name: 'Parc des Buttes-Chaumont',
-          coordinates: [[2.3822, 48.8799], [2.3833, 48.8811]]
-        },
-        notes: 'Excellente séance, bon rythme maintenu - IA adaptative parfaite',
-        aiScore: 94,
-        efficiency: 87
-      },
-      {
-        id: '2',
-        date: '2024-01-12',
-        type: 'Fractionné',
-        distance: 8.2,
-        duration: 35,
-        pace: '4:16',
-        avgHeartRate: 168,
-        calories: 512,
-        elevation: 45,
-        weather: 'Nuageux',
-        notes: '6x800m avec récupération 2min - Zones cardiaques optimisées IA',
-        aiScore: 91,
-        efficiency: 93
-      },
-      {
-        id: '3',
-        date: '2024-01-10',
-        type: 'Récupération',
-        distance: 5.0,
-        duration: 28,
-        pace: '5:36',
-        avgHeartRate: 125,
-        calories: 298,
-        elevation: 15,
-        weather: 'Pluvieux',
-        notes: 'Récupération active - Régénération optimale',
-        aiScore: 96,
-        efficiency: 78
-      },
-      {
-        id: '4',
-        date: '2024-01-08',
-        type: 'Course longue',
-        distance: 18.3,
-        duration: 98,
-        pace: '5:21',
-        avgHeartRate: 152,
-        calories: 1245,
-        elevation: 280,
-        weather: 'Ensoleillé',
-        route: {
-          name: 'Bois de Vincennes',
-          coordinates: [[2.4089, 48.8247], [2.4234, 48.8356]]
-        },
-        notes: 'Préparation semi-marathon, endurance fondamentale parfaite',
-        aiScore: 89,
-        efficiency: 85
-      },
-      {
-        id: '5',
-        date: '2024-01-05',
-        type: 'Tempo',
-        distance: 12.0,
-        duration: 56,
-        pace: '4:40',
-        avgHeartRate: 158,
-        calories: 756,
-        elevation: 95,
-        weather: 'Froid',
-        notes: 'Seuil lactique - Progression IA optimisée',
-        aiScore: 88,
-        efficiency: 91
-      }
-    ];
+  // Utilise les données réelles de l'utilisateur
+  const workouts = useMemo(() =>
+    userData.workouts.map(workout => ({
+      ...workout,
+      type: workout.type.charAt(0).toUpperCase() + workout.type.slice(1),
+      avgHeartRate: workout.heartRate,
+      elevation: 0, // À implémenter plus tard
+      weather: 'N/A', // À implémenter plus tard
+      route: { name: 'Route personnalisée', coordinates: [] },
+      notes: workout.notes || '',
+      aiScore: Math.floor(Math.random() * 20) + 80, // Score simulé pour l'instant
+      efficiency: Math.floor(Math.random() * 15) + 85 // Efficacité simulée
+    })), [userData.workouts]);
 
-    setTimeout(() => {
-      setWorkouts(mockWorkouts);
-      setFilteredWorkouts(mockWorkouts);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+  useEffect(() => {
+    if (isDataLoaded) {
+      setFilteredWorkouts(workouts);
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDataLoaded, workouts]);
 
   // Filter and search functionality
   useEffect(() => {

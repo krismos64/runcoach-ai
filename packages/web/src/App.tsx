@@ -11,18 +11,21 @@ import ImportData from './pages/ImportData';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
 import { AuthProvider } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <HelmetProvider>
       <AuthProvider>
-        <Router>
+        <DataProvider>
+          <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Login />} />
+            <Route path="/app" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<Navigate to="/app/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="workouts" element={<Workouts />} />
               <Route path="training-plan" element={<TrainingPlan />} />
@@ -33,7 +36,8 @@ function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Router>
+          </Router>
+        </DataProvider>
       </AuthProvider>
     </HelmetProvider>
   );

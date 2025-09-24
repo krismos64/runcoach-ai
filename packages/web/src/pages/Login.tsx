@@ -85,14 +85,38 @@ const Login: React.FC = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
+      // Vérification des identifiants
+      const validUsers = [
+        {
+          email: 'c.mostefaoui@yahoo.fr',
+          password: 'Mostefaoui1.',
+          id: '1',
+          name: 'Christophe Mostefaoui'
+        },
+        {
+          email: 'demo@runcoach.fr',
+          password: 'demo123',
+          id: '2',
+          name: 'Athlète RunCoach'
+        }
+      ];
+
+      const user = validUsers.find(u =>
+        u.email === formData.email && u.password === formData.password
+      );
+
+      if (!user) {
+        throw new Error('Identifiants invalides');
+      }
+
       const mockUser = {
-        id: '1',
-        email: formData.email,
-        name: 'Athlète RunCoach'
+        id: user.id,
+        email: user.email,
+        name: user.name
       };
 
       login(mockUser);
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch (error) {
       setErrors({
         general: 'Email ou mot de passe incorrect. Veuillez réessayer.'

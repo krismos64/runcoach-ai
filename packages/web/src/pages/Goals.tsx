@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useData } from '../contexts/DataContext';
 import { motion } from 'framer-motion';
 import {
   Trophy,
@@ -18,86 +19,13 @@ import {
 } from 'lucide-react';
 
 const Goals: React.FC = () => {
+  const { userData } = useData();
   const [activeTab, setActiveTab] = useState('current');
 
-  const currentGoals = [
-    {
-      id: 1,
-      title: "Semi-marathon sous 1h45",
-      description: "Objectif d'automne - course prévue en octobre",
-      targetDate: "2024-10-15",
-      progress: 78,
-      category: "Distance",
-      difficulty: "Élevé",
-      reward: "🏆 Médaille personnalisée",
-      weeklyTarget: "3 séances / semaine",
-      currentPace: "4:58 min/km",
-      targetPace: "4:45 min/km",
-      status: "active",
-      milestones: [
-        { name: "10km sous 47min", completed: true },
-        { name: "15km sous 1h12", completed: true },
-        { name: "Séance seuil 8x1km", completed: false }
-      ]
-    },
-    {
-      id: 2,
-      title: "Perte de poids (-5kg)",
-      description: "Atteindre 70kg pour optimiser les performances",
-      targetDate: "2024-08-30",
-      progress: 40,
-      category: "Forme",
-      difficulty: "Moyen",
-      reward: "🎽 Nouveau kit running",
-      weeklyTarget: "Déficit 500 cal/jour",
-      currentWeight: "72.5kg",
-      targetWeight: "70kg",
-      status: "active",
-      milestones: [
-        { name: "Alimentation équilibrée", completed: true },
-        { name: "-2kg atteint", completed: true },
-        { name: "Stabilisation poids", completed: false }
-      ]
-    },
-    {
-      id: 3,
-      title: "VMA à 18 km/h",
-      description: "Améliorer la vitesse maximale aérobie",
-      targetDate: "2024-09-15",
-      progress: 65,
-      category: "Performance",
-      difficulty: "Élevé",
-      reward: "📱 Montre GPS premium",
-      weeklyTarget: "2 séances VMA",
-      currentVMA: "17.2 km/h",
-      targetVMA: "18.0 km/h",
-      status: "active",
-      milestones: [
-        { name: "Test VMA initial", completed: true },
-        { name: "17.5 km/h atteint", completed: false },
-        { name: "Validation finale", completed: false }
-      ]
-    }
-  ];
+  // Utilise les vrais objectifs de l'utilisateur
+  const currentGoals = userData.goals.filter(goal => goal.status === 'active');
+  const completedGoals = userData.goals.filter(goal => goal.status === 'completed');
 
-  const completedGoals = [
-    {
-      id: 4,
-      title: "10km sous 45 minutes",
-      completedDate: "2024-06-15",
-      category: "Distance",
-      achievement: "44:23",
-      reward: "🏅 Badge Elite"
-    },
-    {
-      id: 5,
-      title: "Courir 5 fois par semaine",
-      completedDate: "2024-05-30",
-      category: "Régularité",
-      achievement: "6 semaines consécutives",
-      reward: "🔥 Streak Master"
-    }
-  ];
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -122,7 +50,9 @@ const Goals: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 text-white relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,215,0,0.1),transparent_50%),radial-gradient(circle_at_80%_20%,rgba(255,193,7,0.1),transparent_50%)]"></div>
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="rgba(255,215,0,0.03)" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="1"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
+      <div className="absolute inset-0 opacity-30" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='rgba(255,215,0,0.03)' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
 
       <div className="relative z-10 p-6 max-w-7xl mx-auto">
         {/* Header */}
@@ -156,10 +86,32 @@ const Goals: React.FC = () => {
           {/* Global Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Objectifs actifs', value: '3', icon: Target, color: 'text-yellow-400' },
-              { label: 'Taux de réussite', value: '87%', icon: TrendingUp, color: 'text-green-400' },
-              { label: 'Objectifs atteints', value: '12', icon: Trophy, color: 'text-blue-400' },
-              { label: 'Streak actuel', value: '28j', icon: Zap, color: 'text-orange-400' }
+              {
+                label: 'Objectifs actifs',
+                value: currentGoals.length.toString(),
+                icon: Target,
+                color: 'text-yellow-400'
+              },
+              {
+                label: 'Taux de réussite',
+                value: userData.goals.length > 0
+                  ? `${Math.round((completedGoals.length / userData.goals.length) * 100)}%`
+                  : '0%',
+                icon: TrendingUp,
+                color: 'text-green-400'
+              },
+              {
+                label: 'Objectifs atteints',
+                value: completedGoals.length.toString(),
+                icon: Trophy,
+                color: 'text-blue-400'
+              },
+              {
+                label: 'Total objectifs',
+                value: userData.goals.length.toString(),
+                icon: Zap,
+                color: 'text-orange-400'
+              }
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -210,7 +162,32 @@ const Goals: React.FC = () => {
             animate={{ opacity: 1 }}
             className="grid gap-6"
           >
-            {currentGoals.map((goal, index) => (
+            {currentGoals.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-12 text-center"
+              >
+                <div className="max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Target size={32} className="text-black" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Aucun objectif défini</h3>
+                  <p className="text-gray-400 mb-6">
+                    Vous n'avez pas encore d'objectifs actifs. Créez votre premier objectif pour commencer à suivre vos progrès !
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-yellow-500/25 transition-all duration-300"
+                  >
+                    <Plus size={20} />
+                    Créer un objectif
+                  </motion.button>
+                </div>
+              </motion.div>
+            ) : (
+              currentGoals.map((goal, index) => (
               <motion.div
                 key={goal.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -307,7 +284,8 @@ const Goals: React.FC = () => {
                   </div>
                 </div>
               </motion.div>
-            ))}
+              ))
+            )}
           </motion.div>
         )}
 
@@ -318,7 +296,24 @@ const Goals: React.FC = () => {
             animate={{ opacity: 1 }}
             className="grid gap-4"
           >
-            {completedGoals.map((goal, index) => (
+            {completedGoals.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-12 text-center"
+              >
+                <div className="max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trophy size={32} className="text-black" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Aucun objectif atteint</h3>
+                  <p className="text-gray-400">
+                    Vous n'avez pas encore d'objectifs complétés. Continuez vos efforts pour atteindre vos premiers objectifs !
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              completedGoals.map((goal, index) => (
               <motion.div
                 key={goal.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -347,7 +342,8 @@ const Goals: React.FC = () => {
                   </div>
                 </div>
               </motion.div>
-            ))}
+              ))
+            )}
           </motion.div>
         )}
       </div>

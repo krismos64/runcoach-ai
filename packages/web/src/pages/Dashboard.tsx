@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -55,60 +56,81 @@ interface PredictionData {
 }
 
 const Dashboard: React.FC = () => {
-  const [stats] = useState<WorkoutStats>({
-    totalSessions: 195,
-    totalDistance: 1247.5,
-    totalDuration: 8420, // minutes
-    avgPace: '5:12',
-    weeklyGoal: 40, // km
-    weeklyProgress: 28.5
-  });
-
-  const [prediction] = useState<PredictionData>({
-    nextWorkoutType: 'Course d\'endurance',
-    recommendedPace: '5:30',
-    estimatedDuration: 45,
-    difficulty: 'Modéré',
-    confidence: 87
-  });
-
+  const { userData, isDataLoaded } = useData();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    if (isDataLoaded) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDataLoaded]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Données basées sur les vraies données utilisateur ou vierges
+  const stats: WorkoutStats = {
+    totalSessions: userData.stats.totalWorkouts,
+    totalDistance: userData.stats.totalDistance,
+    totalDuration: userData.stats.totalTime,
+    avgPace: userData.stats.averagePace,
+    weeklyGoal: 40, // Configurable par utilisateur plus tard
+    weeklyProgress: userData.stats.currentWeekDistance
+  };
 
-  // Mock data for charts
-  const weeklyData = [
-    { day: 'Lun', distance: 8.2, pace: 312, zone: 3 },
-    { day: 'Mar', distance: 0, pace: 0, zone: 0 },
-    { day: 'Mer', distance: 6.5, pace: 295, zone: 2 },
-    { day: 'Jeu', distance: 0, pace: 0, zone: 0 },
-    { day: 'Ven', distance: 10.1, pace: 318, zone: 4 },
-    { day: 'Sam', distance: 0, pace: 0, zone: 0 },
-    { day: 'Dim', distance: 15.3, pace: 338, zone: 3 }
-  ];
+  const prediction: PredictionData = {
+    nextWorkoutType: userData.workouts.length > 0 ? 'Course d\'endurance' : 'Première séance',
+    recommendedPace: userData.workouts.length > 0 ? '5:30' : 'À définir',
+    estimatedDuration: userData.workouts.length > 0 ? 45 : 30,
+    difficulty: userData.workouts.length > 0 ? 'Modéré' : 'Facile',
+    confidence: userData.workouts.length > 0 ? 87 : 0
+  };
 
-  const monthlyData = [
-    { month: 'Jan', distance: 156, sessions: 18, calories: 12400 },
-    { month: 'Fév', distance: 142, sessions: 16, calories: 11300 },
-    { month: 'Mar', distance: 178, sessions: 21, calories: 14200 },
-    { month: 'Avr', distance: 165, sessions: 19, calories: 13100 },
-    { month: 'Mai', distance: 189, sessions: 23, calories: 15100 },
-    { month: 'Jun', distance: 156, sessions: 18, calories: 12400 }
-  ];
+  // Données graphiques basées sur les workouts réels ou vierges
+  const weeklyData = userData.workouts.length > 0
+    ? userData.stats.weeklyProgress.slice(-7).map((item, index) => ({
+        day: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][index],
+        distance: item.distance || 0,
+        pace: 0,
+        zone: 0
+      }))
+    : Array(7).fill(0).map((_, index) => ({
+        day: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][index],
+        distance: 0,
+        pace: 0,
+        zone: 0
+      }));
 
-  const workoutTypes = [
-    { name: 'Endurance', value: 60, color: '#10B981', sessions: 117 },
-    { name: 'Fractionné', value: 25, color: '#F59E0B', sessions: 49 },
-    { name: 'Récupération', value: 10, color: '#6366F1', sessions: 20 },
-    { name: 'Course longue', value: 5, color: '#EF4444', sessions: 9 }
-  ];
+  const monthlyData = userData.workouts.length > 0
+    ? userData.stats.monthlyDistances.slice(-6)
+    : Array(6).fill(0).map((_, index) => ({
+        month: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'][index],
+        distance: 0,
+        sessions: 0,
+        calories: 0
+      }));
+
+  const workoutTypes = userData.workouts.length > 0
+    ? (() => {
+        const typeCount = userData.workouts.reduce((acc, workout) => {
+          acc[workout.type] = (acc[workout.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const total = Object.values(typeCount).reduce((sum, count) => sum + count, 0);
+
+        return Object.entries(typeCount).map(([type, count]) => ({
+          name: type.charAt(0).toUpperCase() + type.slice(1),
+          value: Math.round((count / total) * 100),
+          sessions: count,
+          color: type === 'course' ? '#10B981' :
+                 type === 'fractionné' ? '#F59E0B' :
+                 type === 'endurance' ? '#6366F1' : '#EF4444'
+        }));
+      })()
+    : [
+        { name: 'Aucune donnée', value: 100, color: '#6B7280', sessions: 0 }
+      ];
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },

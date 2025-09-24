@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -97,72 +98,118 @@ interface StatsData {
 }
 
 const Stats: React.FC = () => {
-  const [statsData, setStatsData] = useState<StatsData | null>(null);
+  const { userData, isDataLoaded } = useData();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
   const [selectedMetric, setSelectedMetric] = useState<'distance' | 'pace' | 'heartRate'>('distance');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Mock stats data
-    const mockData: StatsData = {
-      performance: {
-        totalDistance: 567.8,
-        totalTime: 2890, // minutes
-        totalSessions: 45,
-        avgPace: '5:12',
-        bestPace: '3:58',
-        totalCalories: 38450,
-        avgHeartRate: 152,
-        maxHeartRate: 189
-      },
-      trends: {
-        distanceChange: 18.5,
-        paceImprovement: -12.3,
-        consistencyScore: 87,
-        fitnessLevel: 94
-      },
-      monthlyData: [
-        { month: 'Jan', distance: 95, sessions: 8, avgPace: 320, calories: 6200 },
-        { month: 'Fév', distance: 102, sessions: 9, avgPace: 315, calories: 6800 },
-        { month: 'Mar', distance: 118, sessions: 10, avgPace: 310, calories: 7500 },
-        { month: 'Avr', distance: 125, sessions: 11, avgPace: 305, calories: 7950 },
-        { month: 'Mai', distance: 127, sessions: 7, avgPace: 312, calories: 8000 }
-      ],
-      weeklyData: [
-        { week: 'S1', distance: 42, intensity: 75, recovery: 85 },
-        { week: 'S2', distance: 38, intensity: 68, recovery: 92 },
-        { week: 'S3', distance: 45, intensity: 82, recovery: 78 },
-        { week: 'S4', distance: 40, intensity: 71, recovery: 88 }
-      ],
-      paceZones: [
-        { zone: 'Zone 1 (Récup)', time: 145, percentage: 25, color: '#10B981' },
-        { zone: 'Zone 2 (Aérobie)', time: 189, percentage: 33, color: '#3B82F6' },
-        { zone: 'Zone 3 (Tempo)', time: 156, percentage: 27, color: '#F59E0B' },
-        { zone: 'Zone 4 (Seuil)', time: 67, percentage: 12, color: '#EF4444' },
-        { zone: 'Zone 5 (VO2max)', time: 18, percentage: 3, color: '#8B5CF6' }
-      ],
-      workoutTypes: [
-        { type: 'Endurance', count: 18, percentage: 40, color: '#10B981' },
-        { type: 'Fractionné', count: 12, percentage: 27, color: '#F59E0B' },
-        { type: 'Course longue', count: 8, percentage: 18, color: '#8B5CF6' },
-        { type: 'Récupération', count: 5, percentage: 11, color: '#3B82F6' },
-        { type: 'Tempo', count: 2, percentage: 4, color: '#EF4444' }
-      ],
-      fitnessMetrics: [
-        { metric: 'Endurance', current: 92, max: 100 },
-        { metric: 'Vitesse', current: 78, max: 100 },
-        { metric: 'Force', current: 85, max: 100 },
-        { metric: 'Récupération', current: 88, max: 100 },
-        { metric: 'Technique', current: 81, max: 100 },
-        { metric: 'Mental', current: 76, max: 100 }
-      ]
-    };
+    if (isDataLoaded) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDataLoaded]);
 
-    setTimeout(() => {
-      setStatsData(mockData);
-      setIsLoading(false);
-    }, 1000);
-  }, [timeRange]);
+  // Générer des statistiques basées sur les données réelles
+  const statsData: StatsData = userData.workouts.length > 0 ? {
+    performance: {
+      totalDistance: userData.stats.totalDistance,
+      totalTime: userData.stats.totalTime,
+      totalSessions: userData.stats.totalWorkouts,
+      avgPace: userData.stats.averagePace,
+      bestPace: userData.workouts.length > 0
+        ? userData.workouts.reduce((best, workout) => {
+            const [min, sec] = workout.pace.split(':').map(Number);
+            const seconds = min * 60 + sec;
+            const [bestMin, bestSec] = best.split(':').map(Number);
+            const bestSeconds = bestMin * 60 + bestSec;
+            return seconds < bestSeconds ? workout.pace : best;
+          }, userData.workouts[0].pace)
+        : '0:00',
+      totalCalories: userData.workouts.reduce((sum, w) => sum + (w.calories || 0), 0),
+      avgHeartRate: userData.workouts.length > 0
+        ? Math.round(userData.workouts
+            .filter(w => w.heartRate)
+            .reduce((sum, w) => sum + (w.heartRate || 0), 0) /
+          userData.workouts.filter(w => w.heartRate).length)
+        : 0,
+      maxHeartRate: userData.workouts.length > 0
+        ? Math.max(...userData.workouts.filter(w => w.heartRate).map(w => w.heartRate || 0))
+        : 0
+    },
+    trends: {
+      distanceChange: 0, // À calculer plus tard
+      paceImprovement: 0, // À calculer plus tard
+      consistencyScore: 0, // À calculer plus tard
+      fitnessLevel: 0 // À calculer plus tard
+    },
+    monthlyData: userData.stats.monthlyDistances || [],
+    weeklyData: userData.stats.weeklyProgress || [],
+    paceZones: [
+      { zone: 'Aucune donnée', time: 0, percentage: 100, color: '#6B7280' }
+    ],
+    workoutTypes: (() => {
+      const typeCount = userData.workouts.reduce((acc, workout) => {
+        const type = workout.type.charAt(0).toUpperCase() + workout.type.slice(1);
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const total = Object.values(typeCount).reduce((sum, count) => sum + count, 0);
+
+      return Object.entries(typeCount).map(([type, count]) => ({
+        type,
+        count,
+        percentage: Math.round((count / total) * 100),
+        color: type === 'Course' ? '#10B981' :
+               type === 'Fractionné' ? '#F59E0B' :
+               type === 'Endurance' ? '#3B82F6' : '#EF4444'
+      }));
+    })(),
+    fitnessMetrics: [
+      { metric: 'Endurance', current: 0, max: 100 },
+      { metric: 'Vitesse', current: 0, max: 100 },
+      { metric: 'Force', current: 0, max: 100 },
+      { metric: 'Récupération', current: 0, max: 100 },
+      { metric: 'Technique', current: 0, max: 100 },
+      { metric: 'Mental', current: 0, max: 100 }
+    ]
+  } : {
+    performance: {
+      totalDistance: 0,
+      totalTime: 0,
+      totalSessions: 0,
+      avgPace: '0:00',
+      bestPace: '0:00',
+      totalCalories: 0,
+      avgHeartRate: 0,
+      maxHeartRate: 0
+    },
+    trends: {
+      distanceChange: 0,
+      paceImprovement: 0,
+      consistencyScore: 0,
+      fitnessLevel: 0
+    },
+    monthlyData: [],
+    weeklyData: [],
+    paceZones: [
+      { zone: 'Aucune donnée', time: 0, percentage: 100, color: '#6B7280' }
+    ],
+    workoutTypes: [
+      { type: 'Aucune donnée', count: 0, percentage: 100, color: '#6B7280' }
+    ],
+    fitnessMetrics: [
+      { metric: 'Endurance', current: 0, max: 100 },
+      { metric: 'Vitesse', current: 0, max: 100 },
+      { metric: 'Force', current: 0, max: 100 },
+      { metric: 'Récupération', current: 0, max: 100 },
+      { metric: 'Technique', current: 0, max: 100 },
+      { metric: 'Mental', current: 0, max: 100 }
+    ]
+  };
 
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -195,7 +242,6 @@ const Stats: React.FC = () => {
     );
   }
 
-  if (!statsData) return null;
 
   return (
     <>
