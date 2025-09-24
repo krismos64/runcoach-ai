@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -11,7 +12,6 @@ import {
   Target,
   Heart,
   Weight,
-  Bell,
   Shield,
   Eye,
   EyeOff
@@ -37,15 +37,6 @@ interface UserProfile {
   bio?: string;
 }
 
-interface NotificationSettings {
-  workoutReminders: boolean;
-  weeklyReports: boolean;
-  achievements: boolean;
-  socialUpdates: boolean;
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-}
-
 interface PrivacySettings {
   profileVisibility: 'public' | 'friends' | 'private';
   shareWorkouts: boolean;
@@ -55,43 +46,45 @@ interface PrivacySettings {
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'goals' | 'privacy' | 'notifications'>('profile');
+  const { userData } = useData();
+  const [activeTab, setActiveTab] = useState<'profile' | 'goals' | 'privacy'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile>({
-    id: '1',
-    email: user?.email || 'demo@runcoach.ai',
-    firstName: 'Christophe',
-    lastName: 'Runner',
-    dateOfBirth: '1987-05-15',
-    phone: '+33 6 12 34 56 78',
-    location: 'Paris, France',
-    weight: 75,
-    height: 180,
-    restingHeartRate: 55,
-    maxHeartRate: 185,
-    runningLevel: 'intermediate',
-    primaryGoal: 'semi-marathon',
-    weeklyGoal: 40,
-    bio: 'Passionné de course à pied depuis 5 ans. Objectif : finir un semi-marathon en moins de 1h30.'
-  });
-
-  const [notifications, setNotifications] = useState<NotificationSettings>({
-    workoutReminders: true,
-    weeklyReports: true,
-    achievements: true,
-    socialUpdates: false,
-    emailNotifications: true,
-    pushNotifications: true
+    id: user?.id || '',
+    email: user?.email || '',
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    phone: '',
+    location: '',
+    weight: 0,
+    height: 0,
+    restingHeartRate: 0,
+    maxHeartRate: 0,
+    runningLevel: '',
+    primaryGoal: '',
+    weeklyGoal: 0,
+    bio: ''
   });
 
   const [privacy, setPrivacy] = useState<PrivacySettings>({
-    profileVisibility: 'friends',
-    shareWorkouts: true,
-    shareProgress: true,
+    profileVisibility: 'private',
+    shareWorkouts: false,
+    shareProgress: false,
     dataSharing: false
   });
+
+  // Calcul automatique de l'IMC
+  const calculateBMI = (weight: number, height: number): number => {
+    if (weight > 0 && height > 0) {
+      return Number((weight / Math.pow(height / 100, 2)).toFixed(1));
+    }
+    return 0;
+  };
+
+  const bmi = calculateBMI(profile.weight, profile.height);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -125,9 +118,6 @@ const Profile: React.FC = () => {
     setProfile(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleNotificationChange = (field: keyof NotificationSettings, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [field]: value }));
-  };
 
   const handlePrivacyChange = (field: keyof PrivacySettings, value: any) => {
     setPrivacy(prev => ({ ...prev, [field]: value }));
@@ -160,14 +150,10 @@ const Profile: React.FC = () => {
     return age;
   };
 
-  const calculateBMI = (weight: number, height: number): number => {
-    return weight / Math.pow(height / 100, 2);
-  };
 
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'goals', label: 'Objectifs', icon: Target },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'privacy', label: 'Confidentialité', icon: Shield }
   ];
 
@@ -251,25 +237,25 @@ const Profile: React.FC = () => {
             </div>
 
             <div className="text-center md:text-left flex-1">
-              <h2 className="text-2xl font-bold">{profile.firstName} {profile.lastName}</h2>
-              <p className="text-blue-100 mb-4">{profile.bio}</p>
+              <h2 className="text-2xl font-bold">{profile.firstName && profile.lastName ? `${profile.firstName} ${profile.lastName}` : 'Profil à compléter'}</h2>
+              <p className="text-blue-100 mb-4">{profile.bio || 'Ajoutez une bio pour vous présenter...'}</p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <div className="text-blue-100">Âge</div>
-                  <div className="font-semibold">{calculateAge(profile.dateOfBirth)} ans</div>
+                  <div className="font-semibold">{profile.dateOfBirth ? `${calculateAge(profile.dateOfBirth)} ans` : '-'}</div>
                 </div>
                 <div>
                   <div className="text-blue-100">Niveau</div>
-                  <div className="font-semibold">{runningLevels.find(l => l.value === profile.runningLevel)?.label.split(' ')[0]}</div>
+                  <div className="font-semibold">{runningLevels.find(l => l.value === profile.runningLevel)?.label.split(' ')[0] || '-'}</div>
                 </div>
                 <div>
                   <div className="text-blue-100">Objectif</div>
-                  <div className="font-semibold">{goals.find(g => g.value === profile.primaryGoal)?.label}</div>
+                  <div className="font-semibold">{goals.find(g => g.value === profile.primaryGoal)?.label || '-'}</div>
                 </div>
                 <div>
                   <div className="text-blue-100">IMC</div>
-                  <div className="font-semibold">{calculateBMI(profile.weight, profile.height).toFixed(1)}</div>
+                  <div className="font-semibold">{bmi > 0 ? bmi : '-'}</div>
                 </div>
               </div>
             </div>
@@ -468,11 +454,11 @@ const Profile: React.FC = () => {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2">
                           <Weight className="w-4 h-4 text-blue-600" />
-                          <span className="text-blue-800">IMC: {calculateBMI(profile.weight, profile.height).toFixed(1)}</span>
+                          <span className="text-blue-800">IMC: {bmi > 0 ? bmi : 'Non calculé'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Heart className="w-4 h-4 text-red-500" />
-                          <span className="text-blue-800">Zone cible: {Math.round(profile.maxHeartRate * 0.65)}-{Math.round(profile.maxHeartRate * 0.85)} bpm</span>
+                          <span className="text-blue-800">Zone cible: {profile.maxHeartRate > 0 ? `${Math.round(profile.maxHeartRate * 0.65)}-${Math.round(profile.maxHeartRate * 0.85)} bpm` : 'Non calculée'}</span>
                         </div>
                       </div>
                     </div>
@@ -598,6 +584,7 @@ const Profile: React.FC = () => {
                       disabled={!isEditing}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
                     >
+                      <option value="">Sélectionner votre objectif</option>
                       {goals.map((goal) => (
                         <option key={goal.value} value={goal.value}>
                           {goal.label}
@@ -619,62 +606,26 @@ const Profile: React.FC = () => {
                 </div>
 
                 {/* Goal Progress */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
-                  <h4 className="font-medium text-green-900 mb-4">Progression vers vos objectifs</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-green-800">Objectif hebdomadaire</span>
-                      <span className="font-semibold text-green-900">28.5 / {profile.weeklyGoal} km</span>
-                    </div>
-                    <div className="w-full bg-green-200 rounded-full h-3">
-                      <div
-                        className="bg-green-500 h-3 rounded-full"
-                        style={{ width: `${(28.5 / profile.weeklyGoal) * 100}%` }}
-                      />
+                {profile.weeklyGoal > 0 && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                    <h4 className="font-medium text-green-900 mb-4">Progression vers vos objectifs</h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-800">Objectif hebdomadaire</span>
+                        <span className="font-semibold text-green-900">0 / {profile.weeklyGoal} km</span>
+                      </div>
+                      <div className="w-full bg-green-200 rounded-full h-3">
+                        <div
+                          className="bg-green-500 h-3 rounded-full"
+                          style={{ width: '0%' }}
+                        />
+                      </div>
+                      <p className="text-sm text-green-700">
+                        Vos entraînements apparaîtront ici une fois que vous aurez importé ou saisi vos données.
+                      </p>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-6"
-              >
-                <h3 className="text-lg font-semibold text-gray-900">Préférences de notification</h3>
-
-                <div className="space-y-4">
-                  {Object.entries(notifications).map(([key, value]) => {
-                    const labels = {
-                      workoutReminders: 'Rappels d\'entraînement',
-                      weeklyReports: 'Rapports hebdomadaires',
-                      achievements: 'Succès et récompenses',
-                      socialUpdates: 'Mises à jour sociales',
-                      emailNotifications: 'Notifications par email',
-                      pushNotifications: 'Notifications push'
-                    };
-
-                    return (
-                      <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <span className="font-medium text-gray-900">
-                          {labels[key as keyof typeof labels]}
-                        </span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={value}
-                            onChange={(e) => handleNotificationChange(key as keyof NotificationSettings, e.target.checked)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
+                )}
               </motion.div>
             )}
 
