@@ -38,6 +38,7 @@ import {
   Gauge
 } from 'lucide-react';
 import APITestComponent from '../components/APITestComponent';
+import AICoachChatbot from '../components/AICoachChatbot';
 
 interface WorkoutStats {
   totalSessions: number;
@@ -749,6 +750,9 @@ const Dashboard: React.FC = () => {
           {/* API Test Component */}
           <APITestComponent />
         </div>
+
+        {/* AI Coach Chatbot - Floating Widget */}
+        <AICoachChatbot />
       </div>
     </>
   );

@@ -12,6 +12,7 @@ interface DataContextType {
   updateStats: () => void;
   addGoal: (goal: GoalData) => void;
   updateGoal: (goalId: string, updates: Partial<GoalData>) => void;
+  updateProfile: (profile: UserData['profile']) => void;
   resetUserData: () => void;
   isDataLoaded: boolean;
 }
@@ -239,6 +240,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveUserData(newData);
   };
 
+  const updateProfile = (profile: UserData['profile']) => {
+    const newData = { ...userData, profile };
+    setUserData(newData);
+    saveUserData(newData);
+  };
 
   const resetUserData = () => {
     const emptyData = getEmptyUserData(user);
@@ -256,6 +262,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateStats,
       addGoal,
       updateGoal,
+      updateProfile,
       resetUserData,
       isDataLoaded
     }}>
