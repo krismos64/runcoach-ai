@@ -4,6 +4,7 @@ import type { WorkoutData } from '../contexts/DataContext';
 import JSZip from 'jszip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
+import { parseAppleHealthZip, parseAppleHealthLargeFile } from '../services/appleHealthParser';
 import {
   Upload,
   FileText,
@@ -20,7 +21,13 @@ import {
   Sparkles,
   Zap,
   Brain,
-  Shield
+  Shield,
+  Trash2,
+  Check,
+  Square,
+  CheckSquare,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface ImportFile {
@@ -31,6 +38,7 @@ interface ImportFile {
   status: 'pending' | 'processing' | 'success' | 'error';
   progress: number;
   file?: File; // Ajout du fichier réel
+  message?: string; // Pour afficher le statut du traitement
   data?: {
     workouts: number;
     distance: number;
@@ -554,11 +562,14 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
 };
 
 const ImportData: React.FC = () => {
-  const { updateWorkouts, userData } = useData();
+  const { updateWorkouts, userData, deleteWorkout, deleteWorkouts, deleteAllWorkouts } = useData();
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string>('apple-health');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [selectedWorkouts, setSelectedWorkouts] = useState<string[]>([]);
+  const [showWorkoutsList, setShowWorkoutsList] = useState(false);
 
   const dataSources: DataSource[] = [
     {
@@ -655,13 +666,42 @@ const ImportData: React.FC = () => {
         if (fileExtension === 'zip') {
           // Traitement spécial pour les fichiers ZIP
           setFiles(prev => prev.map(f =>
-            f.id === fileImport.id ? { ...f, progress: 40 } : f
+            f.id === fileImport.id ? { ...f, progress: 40, message: 'Analyse du fichier ZIP...' } : f
           ));
 
-          parsedWorkouts = await parseZIPFile(realFile);
+          // Vérifier si c'est un export Apple Health
+          const isAppleHealth = realFile.name.toLowerCase().includes('export') ||
+                                 realFile.name.toLowerCase().includes('apple') ||
+                                 realFile.size > 20 * 1024 * 1024; // Plus de 20MB, probablement Apple Health
+
+          if (isAppleHealth) {
+            try {
+              // Utiliser le parser optimisé pour Apple Health
+              parsedWorkouts = await parseAppleHealthZip(realFile, (progress) => {
+                setFiles(prev => prev.map(f =>
+                  f.id === fileImport.id ? {
+                    ...f,
+                    progress: Math.min(70, 40 + (progress.percentage * 0.3)),
+                    message: progress.currentActivity || 'Traitement Apple Health...'
+                  } : f
+                ));
+              });
+
+              // Fallback vers l'ancien parser si aucun workout trouvé
+              if (parsedWorkouts.length === 0) {
+                console.log('Nouveau parser: aucun workout trouvé, utilisation du fallback...');
+                parsedWorkouts = await parseZIPFile(realFile);
+              }
+            } catch (error) {
+              console.log('Erreur parser optimisé, fallback vers parser standard:', error);
+              parsedWorkouts = await parseZIPFile(realFile);
+            }
+          } else {
+            parsedWorkouts = await parseZIPFile(realFile);
+          }
 
           setFiles(prev => prev.map(f =>
-            f.id === fileImport.id ? { ...f, progress: 70 } : f
+            f.id === fileImport.id ? { ...f, progress: 70, message: 'Finalisation...' } : f
           ));
         } else {
           // Traitement normal pour les autres fichiers
@@ -677,8 +717,36 @@ const ImportData: React.FC = () => {
           ));
 
           // Détecter si c'est un export Apple Health
-          if (fileExtension === 'xml' && fileContent.includes('<HealthData>')) {
-            parsedWorkouts = parseAppleHealthXML(fileContent);
+          if (fileExtension === 'xml' && (fileContent.includes('<HealthData>') || fileContent.includes('HKWorkout'))) {
+            // Pour les gros fichiers XML, utiliser le parser streaming
+            if (realFile.size > 10 * 1024 * 1024) { // Plus de 10MB
+              setFiles(prev => prev.map(f =>
+                f.id === fileImport.id ? { ...f, message: 'Traitement gros fichier Apple Health...' } : f
+              ));
+
+              try {
+                parsedWorkouts = await parseAppleHealthLargeFile(realFile, (progress) => {
+                  setFiles(prev => prev.map(f =>
+                    f.id === fileImport.id ? {
+                      ...f,
+                      progress: Math.min(70, 50 + (progress.percentage * 0.2)),
+                      message: progress.currentActivity || 'Traitement en cours...'
+                    } : f
+                  ));
+                });
+
+                // Fallback vers l'ancien parser si aucun workout trouvé
+                if (parsedWorkouts.length === 0) {
+                  console.log('Parser streaming: aucun workout trouvé, utilisation du fallback...');
+                  parsedWorkouts = parseAppleHealthXML(fileContent);
+                }
+              } catch (error) {
+                console.log('Erreur parser streaming, fallback vers parser standard:', error);
+                parsedWorkouts = parseAppleHealthXML(fileContent);
+              }
+            } else {
+              parsedWorkouts = parseAppleHealthXML(fileContent);
+            }
           } else {
             switch (fileExtension) {
               case 'gpx':
@@ -797,9 +865,76 @@ const ImportData: React.FC = () => {
     }
   };
 
+  const handleDeleteAllWorkouts = () => {
+    setShowDeleteConfirm('all');
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(null);
+  };
+
+  const confirmDeleteAllWorkouts = () => {
+    deleteAllWorkouts();
+    setShowDeleteConfirm(null);
+  };
+
+  // Fonctions de gestion de sélection
+  const toggleWorkoutSelection = (workoutId: string) => {
+    setSelectedWorkouts(prev =>
+      prev.includes(workoutId)
+        ? prev.filter(id => id !== workoutId)
+        : [...prev, workoutId]
+    );
+  };
+
+  const selectAllWorkouts = () => {
+    setSelectedWorkouts(userData.workouts.map(w => w.id));
+  };
+
+  const deselectAllWorkouts = () => {
+    setSelectedWorkouts([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedWorkouts.length === 0) return;
+    setShowDeleteConfirm('selected');
+  };
+
+  const confirmDeleteSelected = () => {
+    deleteWorkouts(selectedWorkouts);
+    setSelectedWorkouts([]);
+    setShowDeleteConfirm(null);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h${minutes.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}min`;
+  };
+
   const successfulFiles = files.filter(f => f.status === 'success');
   const totalWorkouts = successfulFiles.reduce((sum, f) => sum + (f.data?.workouts || 0), 0);
   const totalDistance = successfulFiles.reduce((sum, f) => sum + (f.data?.distance || 0), 0);
+
+  // Calculer la période réelle basée sur les workouts importés
+  const workoutDates = userData.workouts.map(w => new Date(w.date));
+  const minDate = workoutDates.length > 0 ? new Date(Math.min(...workoutDates.map(d => d.getTime()))) : new Date();
+  const maxDate = workoutDates.length > 0 ? new Date(Math.max(...workoutDates.map(d => d.getTime()))) : new Date();
+  const periodText = workoutDates.length > 0
+    ? `${minDate.getFullYear()}${minDate.getFullYear() !== maxDate.getFullYear() ? '-' + maxDate.getFullYear() : ''}`
+    : new Date().getFullYear().toString();
 
   return (
     <>
@@ -1112,7 +1247,10 @@ const ImportData: React.FC = () => {
                                 className="bg-emerald-600 h-2 rounded-full"
                               />
                             </div>
-                            <p className="text-sm text-gray-300 mt-1">{file.progress}% traité</p>
+                            <p className="text-sm text-gray-300 mt-1">
+                              {file.progress}% traité
+                              {file.message && <span className="block text-xs text-gray-400 mt-1">{file.message}</span>}
+                            </p>
                           </div>
                         )}
 
@@ -1234,7 +1372,7 @@ const ImportData: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-sm text-green-100 mb-1">Période</div>
-                  <div className="text-lg font-semibold">2023-2024</div>
+                  <div className="text-lg font-semibold">{periodText}</div>
                 </div>
               </div>
 
@@ -1247,6 +1385,170 @@ const ImportData: React.FC = () => {
                     🧠 Analyses IA • 📈 Tendances • 🎯 Recommandations personnalisées
                   </p>
                 </div>
+
+                {/* Data Management Section */}
+                {userData.workouts && userData.workouts.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xl font-semibold text-white flex items-center space-x-2">
+                          <Shield className="w-5 h-5" />
+                          <span>Gestion des données</span>
+                        </h4>
+                        <p className="text-green-100 text-sm mt-1">
+                          {userData.workouts.length} entraînement{userData.workouts.length > 1 ? 's' : ''} enregistré{userData.workouts.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setShowWorkoutsList(!showWorkoutsList)}
+                        className="bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-white transition-all duration-300 flex items-center space-x-2"
+                      >
+                        <span>{showWorkoutsList ? 'Masquer' : 'Voir les séances'}</span>
+                        {showWorkoutsList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </motion.button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleDeleteAllWorkouts}
+                        className="bg-red-500/20 hover:bg-red-500/30 backdrop-blur-sm px-4 py-2 rounded-xl text-red-200 hover:text-red-100 transition-all duration-300 flex items-center space-x-2 border border-red-500/30"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Supprimer tout</span>
+                      </motion.button>
+
+                      {selectedWorkouts.length > 0 && (
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleDeleteSelected}
+                          className="bg-orange-500/20 hover:bg-orange-500/30 backdrop-blur-sm px-4 py-2 rounded-xl text-orange-200 hover:text-orange-100 transition-all duration-300 flex items-center space-x-2 border border-orange-500/30"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Supprimer sélection ({selectedWorkouts.length})</span>
+                        </motion.button>
+                      )}
+                    </div>
+
+                    {/* Liste des entraînements */}
+                    <AnimatePresence>
+                      {showWorkoutsList && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-3 mt-4"
+                        >
+                          {/* Contrôles de sélection */}
+                          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span className="text-sm text-white/80">
+                              {selectedWorkouts.length > 0
+                                ? `${selectedWorkouts.length} sélectionné${selectedWorkouts.length > 1 ? 's' : ''}`
+                                : 'Aucune sélection'
+                              }
+                            </span>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={selectAllWorkouts}
+                                className="text-xs px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded-lg transition-all duration-300"
+                              >
+                                Tout sélectionner
+                              </button>
+                              <button
+                                onClick={deselectAllWorkouts}
+                                className="text-xs px-3 py-1 bg-gray-500/20 hover:bg-gray-500/30 text-gray-200 rounded-lg transition-all duration-300"
+                              >
+                                Tout désélectionner
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Liste scrollable des entraînements */}
+                          <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
+                            {userData.workouts
+                              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                              .map((workout) => (
+                                <motion.div
+                                  key={workout.id}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  className={`p-3 rounded-lg transition-all duration-300 cursor-pointer ${
+                                    selectedWorkouts.includes(workout.id)
+                                      ? 'bg-blue-500/20 border border-blue-500/40'
+                                      : 'bg-white/5 hover:bg-white/10 border border-transparent'
+                                  }`}
+                                  onClick={() => toggleWorkoutSelection(workout.id)}
+                                >
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex-shrink-0">
+                                      {selectedWorkouts.includes(workout.id) ? (
+                                        <CheckSquare className="w-5 h-5 text-blue-400" />
+                                      ) : (
+                                        <Square className="w-5 h-5 text-white/60" />
+                                      )}
+                                    </div>
+
+                                    <div className="flex-grow min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                          <Activity className="w-4 h-4 text-green-400" />
+                                          <span className="text-sm font-medium text-white">
+                                            {workout.type === 'running' ? 'Course' :
+                                             workout.type === 'walking' ? 'Marche' :
+                                             workout.type === 'interval' ? 'Fractionné' :
+                                             workout.type}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-white/60">
+                                          {formatDate(workout.date)}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center space-x-4 mt-1 text-xs text-white/70">
+                                        <span>{workout.distance} km</span>
+                                        <span>{formatDuration(workout.duration)}</span>
+                                        <span>{workout.pace}/km</span>
+                                        {workout.heartRate && (
+                                          <span className="flex items-center space-x-1">
+                                            <Heart className="w-3 h-3" />
+                                            <span>{workout.heartRate} bpm</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteWorkout(workout.id);
+                                      }}
+                                      className="p-1 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-all duration-300"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </motion.button>
+                                  </div>
+                                </motion.div>
+                              ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+
                 <motion.button
                   whileHover={{ scale: 1.05, x: 5 }}
                   whileTap={{ scale: 0.95 }}
@@ -1262,6 +1564,79 @@ const ImportData: React.FC = () => {
                   </motion.div>
                 </motion.button>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+              onClick={cancelDelete}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl border border-red-500/30 max-w-md w-full mx-auto shadow-2xl"
+              >
+                <div className="text-center space-y-6">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto border-2 border-red-500/40">
+                    <Trash2 className="w-8 h-8 text-red-400" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      Confirmer la suppression
+                    </h3>
+                    {showDeleteConfirm === 'all' ? (
+                      <>
+                        <p className="text-slate-300">
+                          Êtes-vous sûr de vouloir supprimer tous vos entraînements ?
+                          Cette action est <span className="text-red-400 font-semibold">irréversible</span>.
+                        </p>
+                        <p className="text-slate-400 text-sm mt-2">
+                          {userData.workouts?.length || 0} entraînement{(userData.workouts?.length || 0) > 1 ? 's' : ''} seront supprimés définitivement.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-slate-300">
+                          Êtes-vous sûr de vouloir supprimer les entraînements sélectionnés ?
+                          Cette action est <span className="text-red-400 font-semibold">irréversible</span>.
+                        </p>
+                        <p className="text-slate-400 text-sm mt-2">
+                          {selectedWorkouts.length} entraînement{selectedWorkouts.length > 1 ? 's' : ''} seront supprimés définitivement.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={cancelDelete}
+                      className="flex-1 bg-slate-700 hover:bg-slate-600 px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300"
+                    >
+                      Annuler
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={showDeleteConfirm === 'all' ? confirmDeleteAllWorkouts : confirmDeleteSelected}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg"
+                    >
+                      {showDeleteConfirm === 'all' ? 'Supprimer tout' : `Supprimer (${selectedWorkouts.length})`}
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

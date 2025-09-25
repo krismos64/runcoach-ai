@@ -38,7 +38,12 @@ import {
   Trophy,
   Target,
   Flame,
-  Clock
+  Clock,
+  Trash2,
+  Check,
+  Square,
+  CheckSquare,
+  Shield
 } from 'lucide-react';
 
 interface Workout {
@@ -62,13 +67,15 @@ interface Workout {
 }
 
 const Workouts: React.FC = () => {
-  const { userData, isDataLoaded } = useData();
+  const { userData, isDataLoaded, deleteWorkout, deleteWorkouts, deleteAllWorkouts } = useData();
   const [filteredWorkouts, setFilteredWorkouts] = useState<Workout[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'distance' | 'duration'>('date');
   const [viewMode, setViewMode] = useState<'list' | 'chart'>('list');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedWorkouts, setSelectedWorkouts] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Utilise les données réelles de l'utilisateur
   const workouts = useMemo(() =>
@@ -184,6 +191,48 @@ const Workouts: React.FC = () => {
       day: 'numeric',
       month: 'short'
     });
+  };
+
+  // Fonctions de gestion de suppression
+  const toggleWorkoutSelection = (workoutId: string) => {
+    setSelectedWorkouts(prev =>
+      prev.includes(workoutId)
+        ? prev.filter(id => id !== workoutId)
+        : [...prev, workoutId]
+    );
+  };
+
+  const selectAllWorkouts = () => {
+    setSelectedWorkouts(filteredWorkouts.map(w => w.id));
+  };
+
+  const deselectAllWorkouts = () => {
+    setSelectedWorkouts([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedWorkouts.length === 0) return;
+    setShowDeleteConfirm('selected');
+  };
+
+  const handleDeleteAllWorkouts = () => {
+    setShowDeleteConfirm('all');
+  };
+
+  const confirmDeleteSelected = () => {
+    deleteWorkouts(selectedWorkouts);
+    setSelectedWorkouts([]);
+    setShowDeleteConfirm(null);
+  };
+
+  const confirmDeleteAllWorkouts = () => {
+    deleteAllWorkouts();
+    setSelectedWorkouts([]);
+    setShowDeleteConfirm(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(null);
   };
 
   // Chart data preparation
@@ -401,6 +450,74 @@ const Workouts: React.FC = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
+              {/* Barre de contrôles de suppression */}
+              {filteredWorkouts.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="w-5 h-5 text-emerald-400" />
+                      <h3 className="text-lg font-semibold text-white">Gestion des séances</h3>
+                      <span className="text-sm text-white/60">
+                        ({filteredWorkouts.length} séance{filteredWorkouts.length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-sm text-white/80">
+                      {selectedWorkouts.length > 0 ? (
+                        <span>{selectedWorkouts.length} sélectionné{selectedWorkouts.length > 1 ? 's' : ''}</span>
+                      ) : (
+                        <span>Cliquez sur les checkboxes pour sélectionner</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={selectAllWorkouts}
+                        className="text-xs px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded-lg transition-all duration-300"
+                      >
+                        Tout sélectionner
+                      </button>
+                      <button
+                        onClick={deselectAllWorkouts}
+                        className="text-xs px-3 py-1 bg-gray-500/20 hover:bg-gray-500/30 text-gray-200 rounded-lg transition-all duration-300"
+                      >
+                        Tout désélectionner
+                      </button>
+
+                      {selectedWorkouts.length > 0 && (
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleDeleteSelected}
+                          className="bg-orange-500/20 hover:bg-orange-500/30 backdrop-blur-sm px-3 py-1 rounded-lg text-orange-200 hover:text-orange-100 transition-all duration-300 flex items-center space-x-2 border border-orange-500/30"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Supprimer ({selectedWorkouts.length})</span>
+                        </motion.button>
+                      )}
+
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleDeleteAllWorkouts}
+                        className="bg-red-500/20 hover:bg-red-500/30 backdrop-blur-sm px-3 py-1 rounded-lg text-red-200 hover:text-red-100 transition-all duration-300 flex items-center space-x-2 border border-red-500/30"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Supprimer tout</span>
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {filteredWorkouts.map((workout, index) => {
                 const typeConfig = getTypeConfig(workout.type);
                 const TypeIcon = typeConfig.icon;
@@ -422,6 +539,20 @@ const Workouts: React.FC = () => {
                       {/* Header */}
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center space-x-4">
+                          {/* Checkbox de sélection */}
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => toggleWorkoutSelection(workout.id)}
+                            className="p-1"
+                          >
+                            {selectedWorkouts.includes(workout.id) ? (
+                              <CheckSquare className="w-5 h-5 text-blue-400" />
+                            ) : (
+                              <Square className="w-5 h-5 text-white/60 hover:text-white/80" />
+                            )}
+                          </motion.button>
+
                           {/* Animated Icon */}
                           <motion.div
                             whileHover={{ rotate: 10, scale: 1.1 }}
@@ -483,6 +614,16 @@ const Workouts: React.FC = () => {
                           >
                             <Share className="w-5 h-5" />
                           </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => deleteWorkout(workout.id)}
+                            className="p-2 text-red-400/60 hover:text-red-400 transition-colors"
+                            title="Supprimer cette séance"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </motion.button>
+
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -751,6 +892,79 @@ const Workouts: React.FC = () => {
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+              onClick={cancelDelete}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl border border-red-500/30 max-w-md w-full mx-auto shadow-2xl"
+              >
+                <div className="text-center space-y-6">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto border-2 border-red-500/40">
+                    <Trash2 className="w-8 h-8 text-red-400" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl font-bold text-white mb-2">
+                      Confirmer la suppression
+                    </h3>
+                    {showDeleteConfirm === 'all' ? (
+                      <>
+                        <p className="text-slate-300">
+                          Êtes-vous sûr de vouloir supprimer tous vos entraînements ?
+                          Cette action est <span className="text-red-400 font-semibold">irréversible</span>.
+                        </p>
+                        <p className="text-slate-400 text-sm mt-2">
+                          {filteredWorkouts.length} entraînement{filteredWorkouts.length > 1 ? 's' : ''} seront supprimés définitivement.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-slate-300">
+                          Êtes-vous sûr de vouloir supprimer les entraînements sélectionnés ?
+                          Cette action est <span className="text-red-400 font-semibold">irréversible</span>.
+                        </p>
+                        <p className="text-slate-400 text-sm mt-2">
+                          {selectedWorkouts.length} entraînement{selectedWorkouts.length > 1 ? 's' : ''} seront supprimés définitivement.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={cancelDelete}
+                      className="flex-1 bg-slate-700 hover:bg-slate-600 px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300"
+                    >
+                      Annuler
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={showDeleteConfirm === 'all' ? confirmDeleteAllWorkouts : confirmDeleteSelected}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 px-6 py-3 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg"
+                    >
+                      {showDeleteConfirm === 'all' ? 'Supprimer tout' : `Supprimer (${selectedWorkouts.length})`}
+                    </motion.button>
                   </div>
                 </div>
               </motion.div>

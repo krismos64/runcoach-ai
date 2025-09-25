@@ -14,6 +14,9 @@ interface DataContextType {
   updateGoal: (goalId: string, updates: Partial<GoalData>) => void;
   updateProfile: (profile: UserData['profile']) => void;
   resetUserData: () => void;
+  deleteWorkout: (workoutId: string) => void;
+  deleteWorkouts: (workoutIds: string[]) => void;
+  deleteAllWorkouts: () => void;
   isDataLoaded: boolean;
 }
 
@@ -254,6 +257,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteWorkout = (workoutId: string) => {
+    const newWorkouts = userData.workouts.filter(workout => workout.id !== workoutId);
+    updateWorkouts(newWorkouts);
+  };
+
+  const deleteWorkouts = (workoutIds: string[]) => {
+    const newWorkouts = userData.workouts.filter(workout => !workoutIds.includes(workout.id));
+    updateWorkouts(newWorkouts);
+  };
+
+  const deleteAllWorkouts = () => {
+    updateWorkouts([]);
+  };
+
   return (
     <DataContext.Provider value={{
       userData,
@@ -264,6 +281,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateGoal,
       updateProfile,
       resetUserData,
+      deleteWorkout,
+      deleteWorkouts,
+      deleteAllWorkouts,
       isDataLoaded
     }}>
       {children}
