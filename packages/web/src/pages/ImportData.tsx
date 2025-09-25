@@ -241,6 +241,99 @@ const parseCSVFile = (csvContent: string): WorkoutData[] => {
   return workouts;
 };
 
+const parseAppleHealthXML = (xmlContent: string): WorkoutData[] => {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+  const workouts: WorkoutData[] = [];
+
+  // Récupérer toutes les données de fréquence cardiaque
+  const heartRateRecords = xmlDoc.getElementsByTagName('Record');
+  const heartRateData: { startDate: Date; endDate: Date; value: number }[] = [];
+
+  for (let i = 0; i < heartRateRecords.length; i++) {
+    const record = heartRateRecords[i];
+    if (record.getAttribute('type') === 'HKQuantityTypeIdentifierHeartRate') {
+      const startDate = record.getAttribute('startDate');
+      const endDate = record.getAttribute('endDate');
+      const value = parseFloat(record.getAttribute('value') || '0');
+
+      if (startDate && endDate && value > 0) {
+        heartRateData.push({
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          value: value
+        });
+      }
+    }
+  }
+
+  // Récupérer les séances d'entraînement dans Apple Health
+  const workoutElements = xmlDoc.getElementsByTagName('Workout');
+
+  for (let i = 0; i < workoutElements.length; i++) {
+    const workout = workoutElements[i];
+
+    // Extraire les attributs de base
+    const workoutType = workout.getAttribute('workoutActivityType') || '';
+    const startDate = workout.getAttribute('startDate') || '';
+    const endDate = workout.getAttribute('endDate') || '';
+    const duration = parseFloat(workout.getAttribute('duration') || '0'); // en minutes
+    const totalDistance = parseFloat(workout.getAttribute('totalDistance') || '0'); // en km
+    const totalEnergyBurned = parseFloat(workout.getAttribute('totalEnergyBurned') || '0'); // calories
+
+    // Filtrer seulement les activités de course
+    if (!workoutType.toLowerCase().includes('running') && !workoutType.toLowerCase().includes('walking')) {
+      continue;
+    }
+
+    if (!startDate || duration <= 0) continue;
+
+    // Calculer la pace si on a la distance
+    let pace = '0:00';
+    if (totalDistance > 0) {
+      const paceMinPerKm = duration / totalDistance;
+      const paceMin = Math.floor(paceMinPerKm);
+      const paceSec = Math.round((paceMinPerKm - paceMin) * 60);
+      pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+    }
+
+    // Déterminer le type d'entraînement
+    let type: WorkoutData['type'] = 'course';
+    if (workoutType.toLowerCase().includes('walking')) type = 'récupération';
+
+    // Calculer la fréquence cardiaque moyenne pendant ce workout
+    let avgHeartRate: number | undefined;
+    const workoutStartDate = new Date(startDate);
+    const workoutEndDate = new Date(endDate);
+
+    // Filtrer les données FC qui correspondent à cette séance
+    const workoutHeartRates = heartRateData.filter(hr =>
+      hr.startDate >= workoutStartDate && hr.endDate <= workoutEndDate
+    );
+
+    if (workoutHeartRates.length > 0) {
+      const totalHeartRate = workoutHeartRates.reduce((sum, hr) => sum + hr.value, 0);
+      avgHeartRate = Math.round(totalHeartRate / workoutHeartRates.length);
+    }
+
+    const workoutData: WorkoutData = {
+      id: `apple_health_${Date.now()}_${i}`,
+      date: new Date(startDate).toISOString().split('T')[0],
+      type,
+      duration: Math.round(duration),
+      distance: Math.round(totalDistance * 100) / 100,
+      pace,
+      heartRate: avgHeartRate,
+      calories: totalEnergyBurned > 0 ? Math.round(totalEnergyBurned) : undefined,
+      notes: `Importé depuis Apple Health - ${workoutType}`
+    };
+
+    workouts.push(workoutData);
+  }
+
+  return workouts;
+};
+
 const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
   const workouts: WorkoutData[] = [];
 
@@ -255,22 +348,31 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
       const fileExtension = filename.split('.').pop()?.toLowerCase();
 
       // Traiter seulement les fichiers supportés
-      if (!['gpx', 'tcx', 'csv'].includes(fileExtension || '')) continue;
+      if (!['gpx', 'tcx', 'csv', 'xml'].includes(fileExtension || '')) continue;
 
       try {
         const fileContent = await zipEntry.async('text');
         let fileWorkouts: WorkoutData[] = [];
 
-        switch (fileExtension) {
-          case 'gpx':
-            fileWorkouts = parseGPXFile(fileContent);
-            break;
-          case 'tcx':
-            fileWorkouts = parseTCXFile(fileContent);
-            break;
-          case 'csv':
-            fileWorkouts = parseCSVFile(fileContent);
-            break;
+        // Détecter si c'est un export Apple Health
+        if (fileExtension === 'xml' && (filename === 'export.xml' || fileContent.includes('<HealthData>'))) {
+          fileWorkouts = parseAppleHealthXML(fileContent);
+        } else {
+          switch (fileExtension) {
+            case 'gpx':
+              fileWorkouts = parseGPXFile(fileContent);
+              break;
+            case 'tcx':
+              fileWorkouts = parseTCXFile(fileContent);
+              break;
+            case 'csv':
+              fileWorkouts = parseCSVFile(fileContent);
+              break;
+            case 'xml':
+              // Tenter de parser comme GPX si ce n'est pas Apple Health
+              fileWorkouts = parseGPXFile(fileContent);
+              break;
+          }
         }
 
         // Ajouter un préfixe au nom du fichier dans les notes
@@ -323,14 +425,6 @@ const ImportData: React.FC = () => {
       description: 'Importez vos activités depuis Strava',
       supported: true,
       fileTypes: ['gpx', 'tcx', 'fit', 'zip']
-    },
-    {
-      id: 'polar',
-      name: 'Polar Flow',
-      icon: Heart,
-      description: 'Connectez votre compte Polar Flow',
-      supported: false,
-      fileTypes: ['tcx', 'gpx', 'csv', 'zip']
     }
   ];
 
@@ -423,18 +517,27 @@ const ImportData: React.FC = () => {
             f.id === fileImport.id ? { ...f, progress: 50 } : f
           ));
 
-          switch (fileExtension) {
-            case 'gpx':
-              parsedWorkouts = parseGPXFile(fileContent);
-              break;
-            case 'tcx':
-              parsedWorkouts = parseTCXFile(fileContent);
-              break;
-            case 'csv':
-              parsedWorkouts = parseCSVFile(fileContent);
-              break;
-            default:
-              throw new Error(`Format de fichier non supporté: ${fileExtension}`);
+          // Détecter si c'est un export Apple Health
+          if (fileExtension === 'xml' && fileContent.includes('<HealthData>')) {
+            parsedWorkouts = parseAppleHealthXML(fileContent);
+          } else {
+            switch (fileExtension) {
+              case 'gpx':
+                parsedWorkouts = parseGPXFile(fileContent);
+                break;
+              case 'tcx':
+                parsedWorkouts = parseTCXFile(fileContent);
+                break;
+              case 'csv':
+                parsedWorkouts = parseCSVFile(fileContent);
+                break;
+              case 'xml':
+                // Tenter de parser comme GPX si ce n'est pas Apple Health
+                parsedWorkouts = parseGPXFile(fileContent);
+                break;
+              default:
+                throw new Error(`Format de fichier non supporté: ${fileExtension}`);
+            }
           }
         }
 
@@ -687,12 +790,6 @@ const ImportData: React.FC = () => {
                   <li>Attendez la génération du fichier (peut prendre quelques minutes)</li>
                   <li>Partagez le fichier vers cette page ou votre ordinateur</li>
                 </ol>
-                <div className="mt-4 flex items-center space-x-2">
-                  <Download className="w-4 h-4 text-blue-600" />
-                  <a href="#" className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
-                    Guide détaillé avec captures d'écran
-                  </a>
-                </div>
               </div>
             </div>
           </motion.div>
@@ -797,7 +894,7 @@ const ImportData: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {['XML', 'ZIP', 'FIT', 'TCX', 'GPX', 'CSV'].map((format) => (
-                      <span key={format} className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md font-medium text-xs">
+                      <span key={format} className="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-md font-medium text-xs">
                         {format}
                       </span>
                     ))}
