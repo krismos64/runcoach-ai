@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Apple Health Export" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Course rapide - 4.8km</name>
+    <desc>Course matinale rapide</desc>
+    <trkseg>
+      <!-- Point de départ -->
+      <trkpt lat="48.8600" lon="2.3600">
+        <ele>40</ele>
+        <time>2024-01-12T07:15:00Z</time>
+      </trkpt>
+
+      <!-- Points intermédiaires -->
+      <trkpt lat="48.8605" lon="2.3605">
+        <ele>41</ele>
+        <time>2024-01-12T07:18:00Z</time>
+      </trkpt>
+
+      <trkpt lat="48.8610" lon="2.3610">
+        <ele>42</ele>
+        <time>2024-01-12T07:22:00Z</time>
+      </trkpt>
+
+      <trkpt lat="48.8615" lon="2.3615">
+        <ele>43</ele>
+        <time>2024-01-12T07:25:00Z</time>
+      </trkpt>
+
+      <trkpt lat="48.8620" lon="2.3620">
+        <ele>44</ele>
+        <time>2024-01-12T07:30:00Z</time>
+      </trkpt>
+
+      <trkpt lat="48.8625" lon="2.3625">
+        <ele>45</ele>
+        <time>2024-01-12T07:35:00Z</time>
+      </trkpt>
+
+      <trkpt lat="48.8620" lon="2.3620">
+        <ele>44</ele>
+        <time>2024-01-12T07:40:00Z</time>
+      </trkpt>
+
+      <!-- Point d'arrivée -->
+      <trkpt lat="48.8600" lon="2.3600">
+        <ele>40</ele>
+        <time>2024-01-12T07:43:12Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

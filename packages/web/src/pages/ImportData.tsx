@@ -341,6 +341,13 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
     const zip = new JSZip();
     const zipContent = await zip.loadAsync(file);
 
+    // Détecter si c'est un export Apple Health
+    const isAppleHealthExport = Object.keys(zipContent.files).some(filename =>
+      filename === 'export.xml' || zipContent.files[filename].name.includes('workout-routes/')
+    );
+
+    let appleHealthWorkouts: WorkoutData[] = [];
+
     // Parcourir tous les fichiers dans le ZIP
     for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
       if (zipEntry.dir) continue; // Ignorer les dossiers
@@ -354,10 +361,38 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
         const fileContent = await zipEntry.async('text');
         let fileWorkouts: WorkoutData[] = [];
 
-        // Détecter si c'est un export Apple Health
-        if (fileExtension === 'xml' && (filename === 'export.xml' || fileContent.includes('<HealthData>'))) {
-          fileWorkouts = parseAppleHealthXML(fileContent);
+        // Traitement spécial pour Apple Health
+        if (isAppleHealthExport) {
+          if (fileExtension === 'xml' && (filename === 'export.xml' || fileContent.includes('<HealthData>'))) {
+            // Parser le fichier export.xml principal
+            fileWorkouts = parseAppleHealthXML(fileContent);
+            appleHealthWorkouts = fileWorkouts; // Stocker pour fusion avec les GPX
+          } else if (fileExtension === 'gpx' && filename.startsWith('workout-routes/')) {
+            // Parser les fichiers GPX des parcours
+            const gpxWorkouts = parseGPXFile(fileContent);
+
+            // Enrichir les données Apple Health avec les données GPX détaillées
+            gpxWorkouts.forEach(gpxWorkout => {
+              // Chercher le workout Apple Health correspondant par date/heure
+              const matchingWorkout = appleHealthWorkouts.find(ahWorkout =>
+                ahWorkout.date === gpxWorkout.date &&
+                Math.abs(ahWorkout.duration - gpxWorkout.duration) < 5 // Tolérance de 5min
+              );
+
+              if (matchingWorkout) {
+                // Enrichir avec les données GPS plus précises
+                matchingWorkout.distance = gpxWorkout.distance; // GPX souvent plus précis
+                matchingWorkout.pace = gpxWorkout.pace; // Recalculé depuis GPX
+                matchingWorkout.notes = `${matchingWorkout.notes} - Avec données GPS détaillées`;
+              } else {
+                // Ajouter comme nouveau workout si pas de correspondance
+                gpxWorkout.notes = `${gpxWorkout.notes} - Parcours GPS Apple Health`;
+                fileWorkouts.push(gpxWorkout);
+              }
+            });
+          }
         } else {
+          // Traitement normal pour les autres ZIP
           switch (fileExtension) {
             case 'gpx':
               fileWorkouts = parseGPXFile(fileContent);
@@ -377,7 +412,9 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
 
         // Ajouter un préfixe au nom du fichier dans les notes
         fileWorkouts.forEach(workout => {
-          workout.notes = `${workout.notes} - Fichier: ${filename}`;
+          if (!workout.notes?.includes('Apple Health')) {
+            workout.notes = `${workout.notes} - Fichier: ${filename}`;
+          }
           workout.id = `zip_${workout.id}`;
         });
 
@@ -387,6 +424,15 @@ const parseZIPFile = async (file: File): Promise<WorkoutData[]> => {
         // Continuer avec les autres fichiers
       }
     }
+
+    // Si c'est Apple Health, ajouter les workouts enrichis
+    if (isAppleHealthExport && appleHealthWorkouts.length > 0) {
+      appleHealthWorkouts.forEach(workout => {
+        workout.id = `zip_${workout.id}`;
+      });
+      // Les workouts Apple Health enrichis sont déjà dans le tableau workouts
+    }
+
   } catch (error) {
     throw new Error(`Erreur lors de l'extraction du fichier ZIP: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
   }

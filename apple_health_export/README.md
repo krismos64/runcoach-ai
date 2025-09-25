@@ -33,6 +33,26 @@ Le fichier principal contient :
 
 ## Pour tester :
 
-1. Ajoutez un fichier `export.xml` d'exemple dans ce dossier
-2. Le parser `parseAppleHealthXML()` l'analysera automatiquement
-3. Testez l'import via l'interface web
+1. **Fichier XML seul** : Uploadez `export_sample.xml` directement
+2. **ZIP complet** : Uploadez `apple_health_export_example.zip` (contient XML + GPX)
+3. **Fichiers GPX seuls** : Uploadez les fichiers du dossier `workout-routes/`
+
+## Fonctionnalités implémentées :
+
+### 📁 **Support ZIP Apple Health** :
+- Détection automatique des exports Apple Health
+- Traitement du fichier `export.xml` principal
+- Extraction des fichiers GPX dans `workout-routes/`
+- Fusion intelligente des données XML + GPX
+
+### 🔄 **Enrichissement des données** :
+- **Données de base** : Extraites du fichier `export.xml`
+- **Fréquence cardiaque** : Calculée depuis les records
+- **Données GPS précises** : Enrichies depuis les fichiers GPX
+- **Distance/Pace optimisés** : Recalculés depuis les données GPS
+
+### ✅ **Résultat attendu** :
+Quand vous importez le ZIP, vous obtenez des workouts avec :
+- Métadonnées Apple Health (calories, FC, source)
+- Précision GPS des parcours (distance/pace exacts)
+- Notes indiquant l'enrichissement des données
