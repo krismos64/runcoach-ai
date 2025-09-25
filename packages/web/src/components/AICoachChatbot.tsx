@@ -26,6 +26,12 @@ import {
   getTrainingRecommendations,
   getNutritionRecommendations
 } from '../services/benchmarkService';
+import {
+  ChatbotEnhancementService,
+  type EnhancedChatbotResponse,
+  type ChatbotCapabilities
+} from '../services/chatbotEnhancementService';
+import { apiService } from '../services/apiService';
 
 interface AICoachChatbotProps {
   className?: string;
@@ -37,6 +43,8 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [chatbotCapabilities, setChatbotCapabilities] = useState<ChatbotCapabilities | null>(null);
+  const [enhancedMode, setEnhancedMode] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,6 +54,12 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Analyse des capacités du chatbot basées sur les données disponibles
+  useEffect(() => {
+    const capabilities = ChatbotEnhancementService.analyzeChatbotCapabilities(userData);
+    setChatbotCapabilities(capabilities);
+  }, [userData]);
 
   // Message de bienvenue personnalisé
   useEffect(() => {
@@ -470,12 +484,24 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
     // DÉTECTION ET ENREGISTREMENT DES INFORMATIONS UTILISATEUR
     const profileUpdates = extractProfileData(userInput);
     if (profileUpdates && Object.keys(profileUpdates).length > 0) {
-      // Mettre à jour le profil avec les nouvelles données
       response = await handleProfileUpdate(profileUpdates, userInput);
       analysis = await generateInitialAnalysis();
+      return {
+        id: 'coach-' + Date.now(),
+        type: 'coach',
+        content: response,
+        timestamp: new Date(),
+        analysis
+      };
     }
-    // Analyse contextuelle de la demande
-    else if (input.includes('objectif') || input.includes('goal')) {
+
+    // NOUVEAU : Mode amélioré avec analyse contextuelle avancée
+    if (enhancedMode && chatbotCapabilities) {
+      return await generateEnhancedCoachResponse(userInput);
+    }
+
+    // Mode classique (fallback)
+    if (input.includes('objectif') || input.includes('goal')) {
       response = generateGoalResponse();
       analysis = await generateGoalAnalysisWithBenchmarks();
     } else if (input.includes('pace') || input.includes('vitesse')) {
@@ -491,6 +517,49 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
       response = generateGeneralResponse(userInput);
       analysis = await generateInitialAnalysis();
     }
+
+    return {
+      id: 'coach-' + Date.now(),
+      type: 'coach',
+      content: response,
+      timestamp: new Date(),
+      analysis
+    };
+  };
+
+  const generateEnhancedCoachResponse = async (userInput: string): Promise<ChatMessage> => {
+    const context = ChatbotEnhancementService.analyzeContext(userInput, userData);
+    let response = '';
+    let analysis: CoachAnalysis | undefined;
+
+    // Génération de réponse basée sur l'intention détectée et les capacités
+    switch (context.intent) {
+      case 'performance':
+        response = await generatePerformanceResponse(userInput);
+        break;
+
+      case 'training':
+        response = await generateTrainingProgramResponse(userInput);
+        break;
+
+      case 'data':
+        response = await generateDataAnalysisResponse(userInput);
+        break;
+
+      case 'recovery':
+        response = await generateAdvancedRecoveryResponse(userInput);
+        break;
+
+      case 'injury':
+        response = await generateInjuryAssessmentResponse(userInput);
+        break;
+
+      default:
+        response = await generateContextualResponse(userInput, context);
+    }
+
+    // Génération d'analyse avancée
+    analysis = await generateAdvancedAnalysis(context.intent);
 
     return {
       id: 'coach-' + Date.now(),
@@ -828,6 +897,294 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
     return response;
   };
 
+  // NOUVELLES FONCTIONS DE GÉNÉRATION DE RÉPONSES AMÉLIORÉES
+
+  const generatePerformanceResponse = async (userInput: string): Promise<string> => {
+    const personality = userData.profile.preferences.coachPersonality || 'friendly';
+
+    if (!chatbotCapabilities?.canPredictPerformance) {
+      return "📊 J'ai besoin de plus d'historique d'entraînement (au moins 5 sorties) pour prédire vos performances. Continuez à enregistrer vos séances !";
+    }
+
+    try {
+      // Tentative de prédiction avec l'API ML
+      const goal = userData.goals.find(g => g.status === 'active');
+      if (goal) {
+        const targetDistance = extractTargetDistanceFromGoal(goal.title);
+        const prediction = await ChatbotEnhancementService.predictFuturePerformance(
+          userData,
+          targetDistance,
+          goal.targetDate
+        );
+
+        let response = `🎯 **Prédiction pour votre objectif "${goal.title}"**\n\n`;
+        response += `⏱️ Temps estimé : **${prediction.prediction}**\n`;
+        response += `🎯 Confiance : ${prediction.confidence}%\n\n`;
+        response += `📋 **Recommandations :**\n`;
+        prediction.recommendations.forEach((rec, idx) => {
+          response += `${idx + 1}. ${rec}\n`;
+        });
+
+        return response;
+      } else {
+        return generatePerformanceAnalysisWithoutGoal();
+      }
+    } catch (error) {
+      return generatePerformanceAnalysisWithoutGoal();
+    }
+  };
+
+  const generateTrainingProgramResponse = async (userInput: string): Promise<string> => {
+    if (!chatbotCapabilities?.canCreateTrainingPlan) {
+      return "🏃‍♂️ Pour créer un programme personnalisé, j'ai besoin de votre profil complet (âge, expérience) et d'au moins 2 sorties d'historique.";
+    }
+
+    const goal = userData.goals.find(g => g.status === 'active');
+    if (!goal) {
+      return `🎯 Créons d'abord un objectif ! Souhaitez-vous préparer un 5K, 10K, semi-marathon ou marathon ? Et dans combien de temps ?`;
+    }
+
+    try {
+      const trainingPlan = ChatbotEnhancementService.generatePersonalizedTrainingPlan(userData, goal);
+      let response = `🏃‍♂️ **Programme personnalisé pour "${goal.title}"**\n\n`;
+
+      response += `📅 **Structure hebdomadaire :**\n`;
+      trainingPlan.weeklyStructure.forEach(day => {
+        const distanceInfo = day.distance ? ` (${day.distance.toFixed(1)}km)` : '';
+        response += `• ${day.day}: ${day.type}${distanceInfo}\n`;
+      });
+
+      response += `\n📈 **Progression sur 4 semaines :**\n`;
+      trainingPlan.progressionPlan.slice(0, 4).forEach((week, idx) => {
+        response += `Semaine ${idx + 1}: ${week.focusArea} - ${week.keySession}\n`;
+      });
+
+      response += `\n🎯 **Séances clés :**\n`;
+      trainingPlan.keyWorkouts.forEach(workout => {
+        response += `• **${workout.name}**: ${workout.description}\n  → ${workout.purpose}\n`;
+      });
+
+      return response;
+    } catch (error) {
+      return "📋 Programme en cours de génération... Revenez dans quelques instants !";
+    }
+  };
+
+  const generateDataAnalysisResponse = async (userInput: string): Promise<string> => {
+    if (userData.workouts.length === 0) {
+      return "📊 Aucune donnée d'entraînement disponible pour l'analyse. Importez vos premières séances !";
+    }
+
+    try {
+      const insights = await ChatbotEnhancementService.generateAdvancedInsights(userData);
+      let response = `📊 **Analyse complète de vos données**\n\n`;
+
+      response += `📈 **Statistiques globales :**\n`;
+      response += `• ${userData.stats.totalWorkouts} séances au total\n`;
+      response += `• ${userData.stats.totalDistance}km parcourus\n`;
+      response += `• Pace moyenne : ${userData.stats.averagePace}/km\n`;
+      response += `• Cette semaine : ${userData.stats.currentWeekDistance}km\n\n`;
+
+      if (insights.length > 0) {
+        response += `🔍 **Insights personnalisés :**\n`;
+        insights.forEach(insight => {
+          response += `• ${insight}\n`;
+        });
+        response += '\n';
+      }
+
+      // Analyse des données avancées si disponibles
+      if (chatbotCapabilities?.hasHeartRateData) {
+        response += `💓 **Données cardiaques détectées** - Optimisation possible de vos zones d'entraînement\n`;
+      }
+      if (chatbotCapabilities?.hasAdvancedMetrics) {
+        response += `⚡ **Métriques avancées disponibles** - Cadence, puissance, dénivelé analysés\n`;
+      }
+      if (chatbotCapabilities?.hasWeatherData) {
+        response += `🌤️ **Données météo intégrées** - Impact des conditions analysé\n`;
+      }
+
+      return response;
+    } catch (error) {
+      return generateBasicDataAnalysis();
+    }
+  };
+
+  const generateAdvancedRecoveryResponse = async (userInput: string): Promise<string> => {
+    if (!chatbotCapabilities?.canOptimizeRecovery) {
+      return generateRecoveryResponse(); // Fallback vers la version classique
+    }
+
+    let response = `🛌 **Analyse de récupération personnalisée**\n\n`;
+
+    // Calcul de la charge d'entraînement récente
+    const recentWorkouts = userData.workouts.slice(-7); // 7 derniers jours
+    const totalWeeklyLoad = recentWorkouts.reduce((sum, w) => sum + w.distance + (w.duration / 10), 0);
+
+    if (totalWeeklyLoad > 50) {
+      response += `⚠️ **Charge élevée cette semaine** (${totalWeeklyLoad.toFixed(1)} points)\n`;
+      response += `• 🛁 Récupération active obligatoire\n`;
+      response += `• 💤 Sommeil 8-9h minimum\n`;
+      response += `• 🧘‍♀️ Étirements prolongés (20min)\n\n`;
+    } else if (totalWeeklyLoad > 25) {
+      response += `✅ **Charge modérée** (${totalWeeklyLoad.toFixed(1)} points)\n`;
+      response += `• 🛌 7-8h de sommeil\n`;
+      response += `• 🚶‍♀️ Marche active les jours off\n`;
+      response += `• 💧 Hydratation ++\n\n`;
+    } else {
+      response += `🟢 **Charge faible** - Récupération normale suffisante\n\n`;
+    }
+
+    // Analyse FC si disponible
+    if (chatbotCapabilities.hasHeartRateData) {
+      const lastHRWorkout = userData.workouts.filter(w => w.heartRate).slice(-1)[0];
+      if (lastHRWorkout && lastHRWorkout.heartRate) {
+        if (lastHRWorkout.heartRate > 170) {
+          response += `💓 **FC élevée dernière séance** (${lastHRWorkout.heartRate} bpm)\n`;
+          response += `→ Récupération active recommandée 24-48h\n\n`;
+        }
+      }
+    }
+
+    response += `🎯 **Prochaines 24-48h :**\n`;
+    response += `• Écoutez vos sensations\n`;
+    response += `• Test : fréquence cardiaque au repos\n`;
+    response += `• Si fatigue persistante → jour de repos supplémentaire\n`;
+
+    return response;
+  };
+
+  const generateInjuryAssessmentResponse = async (userInput: string): Promise<string> => {
+    if (!chatbotCapabilities?.canAssessInjuryRisk) {
+      return `🏥 J'ai besoin de plus d'historique (au moins 3 séances) pour évaluer le risque de blessure. En attendant, écoutez votre corps !`;
+    }
+
+    try {
+      const assessment = await apiService.analyzeInjuryRisk(userData.workouts);
+
+      let response = `🏥 **Évaluation du risque de blessure**\n\n`;
+
+      const riskEmoji = assessment.overall_risk === 'low' ? '🟢' :
+                       assessment.overall_risk === 'medium' ? '🟡' : '🔴';
+
+      response += `${riskEmoji} **Risque global : ${assessment.overall_risk.toUpperCase()}**\n`;
+      response += `Score : ${assessment.risk_score}/100\n\n`;
+
+      if (assessment.risk_factors.length > 0) {
+        response += `⚠️ **Facteurs de risque détectés :**\n`;
+        assessment.risk_factors.forEach(factor => {
+          response += `• **${factor.factor}** (${factor.severity})\n`;
+          response += `  ${factor.description}\n`;
+        });
+        response += '\n';
+      }
+
+      response += `🛡️ **Recommandations préventives :**\n`;
+      assessment.prevention_tips.forEach(tip => {
+        response += `• ${tip}\n`;
+      });
+
+      if (assessment.recommended_actions.length > 0) {
+        response += `\n🎯 **Actions recommandées :**\n`;
+        assessment.recommended_actions.forEach(action => {
+          response += `• ${action}\n`;
+        });
+      }
+
+      return response;
+    } catch (error) {
+      return generateBasicInjuryGuidance();
+    }
+  };
+
+  const generateContextualResponse = async (userInput: string, context: any): Promise<string> => {
+    const personality = userData.profile.preferences.coachPersonality || 'friendly';
+
+    // Réponse contextuelle basée sur l'intention et les capacités
+    let response = `🤔 Je comprends votre question sur "${userInput}"\n\n`;
+
+    // Suggestions d'actions basées sur les capacités disponibles
+    if (context.suggestedActions.length > 0) {
+      response += `💡 **Je peux vous aider avec :**\n`;
+      context.suggestedActions.forEach(action => {
+        response += `• ${action}\n`;
+      });
+      response += '\n';
+    }
+
+    // Recommandations personnalisées selon les données disponibles
+    if (chatbotCapabilities?.canPredictPerformance) {
+      response += `🎯 Voulez-vous que je prédise vos performances futures ?\n`;
+    }
+    if (chatbotCapabilities?.canCreateTrainingPlan) {
+      response += `📋 Je peux créer un programme d'entraînement personnalisé !\n`;
+    }
+    if (chatbotCapabilities?.canAssessInjuryRisk) {
+      response += `🏥 Souhaitez-vous une évaluation de votre risque de blessure ?\n`;
+    }
+
+    return response;
+  };
+
+  const generateAdvancedAnalysis = async (intent: string): Promise<CoachAnalysis> => {
+    try {
+      const insights = await ChatbotEnhancementService.generateAdvancedInsights(userData);
+      const baseAnalysis = await generateInitialAnalysis();
+
+      return {
+        ...baseAnalysis,
+        personalizedInsights: [
+          ...baseAnalysis.personalizedInsights,
+          ...insights
+        ],
+        recommendations: {
+          ...baseAnalysis.recommendations,
+          // Ajouter des recommandations spécifiques selon l'intention
+        }
+      };
+    } catch (error) {
+      return generateInitialAnalysis();
+    }
+  };
+
+  // Fonctions utilitaires pour les nouvelles fonctionnalités
+  const extractTargetDistanceFromGoal = (goalTitle: string): number => {
+    const title = goalTitle.toLowerCase();
+    if (title.includes('5k')) return 5;
+    if (title.includes('10k')) return 10;
+    if (title.includes('semi')) return 21.1;
+    if (title.includes('marathon')) return 42.2;
+    return 10; // par défaut
+  };
+
+  const generatePerformanceAnalysisWithoutGoal = (): string => {
+    const { stats } = userData;
+    let response = `📊 **Analyse de vos performances actuelles**\n\n`;
+    response += `• Pace moyenne : ${stats.averagePace}/km\n`;
+    response += `• Distance totale : ${stats.totalDistance}km\n`;
+    response += `• ${stats.totalWorkouts} séances au total\n\n`;
+    response += `🎯 **Pour prédire vos performances :**\n`;
+    response += `Fixez-vous un objectif (5K, 10K, semi, marathon) et j'analyserai vos chances de réussite !`;
+    return response;
+  };
+
+  const generateBasicDataAnalysis = (): string => {
+    const { stats, workouts } = userData;
+    let response = `📊 **Analyse basique de vos données**\n\n`;
+    response += `• ${stats.totalWorkouts} séances\n`;
+    response += `• ${stats.totalDistance}km au total\n`;
+    response += `• Pace moyenne : ${stats.averagePace}\n`;
+    if (workouts.length > 0) {
+      const lastWorkout = workouts[workouts.length - 1];
+      response += `• Dernière sortie : ${lastWorkout.distance}km en ${Math.floor(lastWorkout.duration / 60)}min\n`;
+    }
+    return response;
+  };
+
+  const generateBasicInjuryGuidance = (): string => {
+    return `🏥 **Conseils préventifs généraux :**\n\n• Écoutez votre corps\n• Respectez la règle des 10% (augmentation du volume)\n• Alternez séances difficiles et faciles\n• Étirements réguliers\n• Sommeil de qualité\n\n⚠️ En cas de douleur persistante, consultez un professionnel.`;
+  };
+
   const CoachIcon = () => (
     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
       <Bot className="w-4 h-4 text-white" />
@@ -882,18 +1239,55 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
           <div className="flex items-center space-x-3">
             <CoachIcon />
             <div>
-              <h3 className="font-bold">Coach IA</h3>
-              <p className="text-xs opacity-90">Votre coach personnel</p>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-bold">Coach IA</h3>
+                {enhancedMode && (
+                  <motion.div
+                    className="px-2 py-1 bg-white/20 rounded-full text-xs font-medium"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    ⚡ Mode Avancé
+                  </motion.div>
+                )}
+              </div>
+              <div className="flex items-center space-x-1 text-xs opacity-90">
+                <span>Coach personnel</span>
+                {chatbotCapabilities && (
+                  <>
+                    <span>•</span>
+                    <div className="flex space-x-1">
+                      {chatbotCapabilities.canPredictPerformance && <span title="Prédictions">🎯</span>}
+                      {chatbotCapabilities.canCreateTrainingPlan && <span title="Programmes">📋</span>}
+                      {chatbotCapabilities.canAssessInjuryRisk && <span title="Analyse risque">🏥</span>}
+                      {chatbotCapabilities.hasAdvancedMetrics && <span title="Métriques avancées">⚡</span>}
+                      {chatbotCapabilities.hasHeartRateData && <span title="Données cardiaques">💓</span>}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-          <motion.button
-            onClick={() => setIsExpanded(false)}
-            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ChevronDown className="w-5 h-5" />
-          </motion.button>
+          <div className="flex items-center space-x-2">
+            <motion.button
+              onClick={() => setEnhancedMode(!enhancedMode)}
+              className={`p-1 rounded-lg transition-colors ${enhancedMode ? 'bg-white/20' : 'hover:bg-white/10'}`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              title={enhancedMode ? 'Désactiver mode avancé' : 'Activer mode avancé'}
+            >
+              <Brain className="w-4 h-4" />
+            </motion.button>
+            <motion.button
+              onClick={() => setIsExpanded(false)}
+              className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <ChevronDown className="w-5 h-5" />
+            </motion.button>
+          </div>
         </div>
       </div>
 
