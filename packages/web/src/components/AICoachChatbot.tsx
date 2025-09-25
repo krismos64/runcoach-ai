@@ -32,6 +32,7 @@ import {
   type ChatbotCapabilities
 } from '../services/chatbotEnhancementService';
 import { apiService } from '../services/apiService';
+import { collectiveDataService } from '../services/collectiveDataService';
 
 interface AICoachChatbotProps {
   className?: string;
@@ -552,6 +553,11 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
 
       case 'injury':
         response = await generateInjuryAssessmentResponse(userInput);
+        break;
+
+      case 'comparison':
+      case 'benchmark':
+        response = await generateComparisonWithPeersResponse(userInput);
         break;
 
       default:
@@ -1185,6 +1191,106 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
     return `🏥 **Conseils préventifs généraux :**\n\n• Écoutez votre corps\n• Respectez la règle des 10% (augmentation du volume)\n• Alternez séances difficiles et faciles\n• Étirements réguliers\n• Sommeil de qualité\n\n⚠️ En cas de douleur persistante, consultez un professionnel.`;
   };
 
+  const generateComparisonWithPeersResponse = async (userInput: string): Promise<string> => {
+    if (!chatbotCapabilities?.canCompareWithPeers) {
+      return "🔍 Pour des comparaisons précises avec vos pairs, j'ai besoin de votre âge, sexe et au moins 3 séances d'historique.";
+    }
+
+    try {
+      const insights = await collectiveDataService.compareWithSimilarAthletes(userData);
+
+      if (insights.length === 0) {
+        return "📊 Données en cours de collecte... Revenez dans quelques minutes pour une comparaison détaillée !";
+      }
+
+      let response = `🌐 **Comparaison avec vos pairs** (${userData.profile.age} ans, ${userData.profile.sex === 'male' ? 'homme' : 'femme'})\n\n`;
+
+      // Organiser les insights par catégorie
+      const performanceInsights = insights.filter(i => i.type === 'performance');
+      const trainingInsights = insights.filter(i => i.type === 'training');
+      const recoveryInsights = insights.filter(i => i.type === 'recovery');
+
+      if (performanceInsights.length > 0) {
+        response += `🏃‍♂️ **Performance vs similaires :**\n`;
+        performanceInsights.forEach(insight => {
+          const percentile = insight.comparisonData.percentile;
+          const emoji = percentile >= 75 ? '🥇' : percentile >= 50 ? '🥈' : percentile >= 25 ? '🥉' : '📈';
+          response += `${emoji} ${insight.insight}\n`;
+          if (insight.confidence > 80) {
+            response += `   💡 ${insight.recommendation}\n`;
+          }
+        });
+        response += '\n';
+      }
+
+      if (trainingInsights.length > 0) {
+        response += `🏋️‍♀️ **Entraînement vs similaires :**\n`;
+        trainingInsights.forEach(insight => {
+          response += `• ${insight.insight}\n`;
+          if (insight.confidence > 75) {
+            response += `   💡 ${insight.recommendation}\n`;
+          }
+        });
+        response += '\n';
+      }
+
+      // Données spécifiques FC et dénivelé si disponibles
+      const hrInsight = insights.find(i => i.insight.toLowerCase().includes('fc') || i.insight.toLowerCase().includes('cardiaque'));
+      const elevationInsight = insights.find(i => i.insight.toLowerCase().includes('dénivelé') || i.insight.toLowerCase().includes('côte'));
+
+      if (hrInsight) {
+        response += `💓 **Fréquence cardiaque :**\n`;
+        response += `• ${hrInsight.insight}\n`;
+        response += `   💡 ${hrInsight.recommendation}\n\n`;
+      }
+
+      if (elevationInsight) {
+        response += `⛰️ **Dénivelé & terrain :**\n`;
+        response += `• ${elevationInsight.insight}\n`;
+        response += `   💡 ${elevationInsight.recommendation}\n\n`;
+      }
+
+      // Recommandations globales basées sur la comparaison
+      const smartRecs = await collectiveDataService.generateSmartRecommendations(userData);
+      if (smartRecs.length > 0) {
+        response += `🎯 **Actions recommandées :**\n`;
+        smartRecs.slice(0, 3).forEach(rec => {
+          const successRate = Math.round((rec.similarProfilesSuccess.succeeded / rec.similarProfilesSuccess.attempted) * 100);
+          response += `• ${rec.action}\n`;
+          response += `   📊 ${successRate}% de réussite sur ${rec.similarProfilesSuccess.attempted} tentatives similaires\n`;
+        });
+      }
+
+      return response;
+    } catch (error) {
+      return generateFallbackComparison();
+    }
+  };
+
+  const generateFallbackComparison = (): string => {
+    const { stats, profile } = userData;
+    let response = `📊 **Analyse comparative basique :**\n\n`;
+
+    // Utiliser les benchmarks statiques comme fallback
+    response += `• Votre pace (${stats.averagePace}/km) pour votre profil (${profile.age} ans)\n`;
+    response += `• Volume hebdomadaire : ${stats.currentWeekDistance}km\n`;
+    response += `• Régularité : ${stats.totalWorkouts} séances au total\n\n`;
+
+    response += `💡 **Recommandation générale :**\n`;
+    if (stats.averagePace && stats.averagePace !== "0:00") {
+      const paceMinutes = parseInt(stats.averagePace.split(':')[0]);
+      if (paceMinutes > 6) {
+        response += `Focus sur la constance avant la vitesse - visez 3-4 sorties/semaine\n`;
+      } else if (paceMinutes > 5) {
+        response += `Bon niveau ! Ajoutez du fractionné pour progresser\n`;
+      } else {
+        response += `Performances excellentes ! Travaillez la spécificité selon vos objectifs\n`;
+      }
+    }
+
+    return response;
+  };
+
   const CoachIcon = () => (
     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
       <Bot className="w-4 h-4 text-white" />
@@ -1261,6 +1367,7 @@ const AICoachChatbot: React.FC<AICoachChatbotProps> = ({ className }) => {
                       {chatbotCapabilities.canPredictPerformance && <span title="Prédictions">🎯</span>}
                       {chatbotCapabilities.canCreateTrainingPlan && <span title="Programmes">📋</span>}
                       {chatbotCapabilities.canAssessInjuryRisk && <span title="Analyse risque">🏥</span>}
+                      {chatbotCapabilities.canCompareWithPeers && <span title="Comparaison avec pairs">🌐</span>}
                       {chatbotCapabilities.hasAdvancedMetrics && <span title="Métriques avancées">⚡</span>}
                       {chatbotCapabilities.hasHeartRateData && <span title="Données cardiaques">💓</span>}
                     </div>

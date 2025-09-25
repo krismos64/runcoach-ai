@@ -1,5 +1,6 @@
 import type { WorkoutData, UserData, StatsData, GoalData } from '../shared/types';
 import { apiService } from './apiService';
+import { collectiveDataService, type PersonalizedInsight, type SmartRecommendation } from './collectiveDataService';
 
 export interface ChatbotCapabilities {
   // Données disponibles
@@ -16,6 +17,8 @@ export interface ChatbotCapabilities {
   canCreateTrainingPlan: boolean;
   canOptimizeRecovery: boolean;
   canAnalyzeTrends: boolean;
+  canCompareWithPeers: boolean;
+  canProvideCollectiveInsights: boolean;
 }
 
 export interface EnhancedChatbotResponse {
@@ -59,12 +62,14 @@ export class ChatbotEnhancementService {
       canAssessInjuryRisk: workouts.length >= 3,
       canCreateTrainingPlan: !!(profile.age && profile.runningExperience) && workouts.length >= 2,
       canOptimizeRecovery: workouts.some(w => w.heartRate || w.duration > 30),
-      canAnalyzeTrends: workouts.length >= 7
+      canAnalyzeTrends: workouts.length >= 7,
+      canCompareWithPeers: !!(profile.age && profile.sex) && workouts.length >= 3,
+      canProvideCollectiveInsights: !!(profile.age && profile.sex) && workouts.length >= 1
     };
   }
 
   /**
-   * Génère des insights basés sur l'historique complet
+   * Génère des insights basés sur l'historique complet ET les données collectives
    */
   static async generateAdvancedInsights(userData: UserData): Promise<string[]> {
     const insights: string[] = [];
@@ -73,6 +78,17 @@ export class ChatbotEnhancementService {
     if (workouts.length === 0) return insights;
 
     try {
+      // NOUVEAU : Insights basés sur la comparaison avec des millions de coureurs
+      if (profile.age && profile.sex && workouts.length >= 3) {
+        const collectiveInsights = await collectiveDataService.compareWithSimilarAthletes(userData);
+
+        collectiveInsights.forEach(insight => {
+          insights.push(`🌐 ${insight.insight} (basé sur ${insight.basedOnSimilarAthletes.toLocaleString()} coureurs similaires)`);
+          if (insight.confidence > 80) {
+            insights.push(`💡 ${insight.recommendation}`);
+          }
+        });
+      }
       // 1. Analyse des tendances de performance
       if (workouts.length >= 7) {
         const trend = await apiService.analyzePerformanceTrend(workouts);
@@ -178,7 +194,8 @@ export class ChatbotEnhancementService {
       nutrition: ['alimentation', 'nutrition', 'hydratation', 'énergie'],
       injury: ['blessure', 'douleur', 'mal', 'problème'],
       motivation: ['motivation', 'découragé', 'difficile', 'abandon'],
-      data: ['statistiques', 'données', 'analyse', 'tendance', 'évolution']
+      data: ['statistiques', 'données', 'analyse', 'tendance', 'évolution'],
+      comparison: ['comparaison', 'compare', 'autres coureurs', 'pairs', 'similaires', 'moyenne', 'percentile', 'benchmarks', 'vs', 'niveau']
     };
 
     let detectedIntent = 'general';
@@ -334,7 +351,8 @@ export class ChatbotEnhancementService {
       'performance': ['trend_analysis', 'benchmark_comparison', 'prediction'],
       'training': ['training_zones', 'volume_analysis', 'recovery_status'],
       'recovery': ['injury_risk', 'training_load', 'heart_rate_variability'],
-      'data': ['comprehensive_stats', 'trend_analysis', 'goal_progress']
+      'data': ['comprehensive_stats', 'trend_analysis', 'goal_progress'],
+      'comparison': ['peer_comparison', 'collective_benchmarks', 'percentile_ranking', 'similar_profiles']
     };
 
     return analysisMap[intent] || ['basic_stats'];
@@ -346,7 +364,8 @@ export class ChatbotEnhancementService {
       'performance': ['Créer un programme personnalisé', 'Fixer un objectif SMART', 'Analyser les benchmarks'],
       'training': ['Générer un plan d\'entraînement', 'Optimiser la récupération', 'Varier les séances'],
       'recovery': ['Évaluer le risque de blessure', 'Planifier les repos', 'Analyser la charge'],
-      'motivation': ['Fixer des micro-objectifs', 'Célébrer les progrès', 'Trouver un partenaire']
+      'motivation': ['Fixer des micro-objectifs', 'Célébrer les progrès', 'Trouver un partenaire'],
+      'comparison': ['Comparer avec vos pairs', 'Analyser votre percentile', 'Identifier vos forces', 'Découvrir les patterns de succès']
     };
 
     return actionMap[intent] || ['Analyser vos données', 'Définir vos objectifs'];
