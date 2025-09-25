@@ -37,6 +37,7 @@ import {
   ArrowDown,
   Gauge
 } from 'lucide-react';
+import APITestComponent from '../components/APITestComponent';
 
 interface WorkoutStats {
   totalSessions: number;
@@ -744,6 +745,9 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </motion.div>
+
+          {/* API Test Component */}
+          <APITestComponent />
         </div>
       </div>
     </>

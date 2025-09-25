@@ -47,6 +47,7 @@ import {
   Share2,
   RefreshCw
 } from 'lucide-react';
+import AdvancedAnalytics from '../components/AdvancedAnalytics';
 
 interface StatsData {
   performance: {
@@ -755,6 +756,8 @@ const Stats: React.FC = () => {
             </div>
           </motion.div>
 
+          {/* Advanced AI Analytics - Temporairement désactivé */}
+
           {/* Pace Zones Distribution */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -948,6 +951,9 @@ const Stats: React.FC = () => {
               ))}
             </div>
           </motion.div>
+
+          {/* Advanced Analytics */}
+          <AdvancedAnalytics />
         </motion.div>
       </div>
     </>

@@ -1,0 +1,20 @@
+# FastAPI avec dépendances standard (compatible Python 3.13)
+fastapi[standard]>=0.112.0
+uvicorn>=0.31.0
+
+# Data Science & ML (versions compatibles Python 3.13)
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.7.0
+
+# API & Validation
+pydantic>=2.8.0
+python-multipart>=0.0.9
+aiofiles>=24.1.0
+
+# Environment & Configuration
+python-dotenv>=1.0.1
+
+# HTTP Client & Requests
+httpx>=0.28.0
+requests>=2.32.0

@@ -7,17 +7,20 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=packages/api",
-    "dev:api": "npm run dev --workspace=packages/api",
+    "start": "./reset-and-start.sh",
+    "dev": "npm run dev:web",
     "dev:web": "npm run dev --workspace=packages/web",
-    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:python": "cd packages/api && source venv/bin/activate && uvicorn main:app --reload",
+    "dev:fullstack": "./reset-and-start.sh",
+    "reset": "./reset-and-start.sh",
     "build": "npm run build --workspaces",
-    "build:api": "npm run build --workspace=packages/api",
     "build:web": "npm run build --workspace=packages/web",
-    "start": "npm run start --workspace=packages/api",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
-    "clean": "npm run clean --workspaces && rm -rf node_modules"
+    "clean": "npm run clean --workspaces && rm -rf node_modules",
+    "setup:python": "cd packages/api && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

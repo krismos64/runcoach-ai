@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Backend Python IA
+  api:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=development-secret-key-runcoach-ai-2024
+      - DATABASE_URL=sqlite:///./runcoach.db
+      - CORS_ORIGINS=http://localhost:3001,http://localhost:5173
+    volumes:
+      - ./packages/api:/app
+      - api_data:/app/data
+    networks:
+      - runcoach-network
+    restart: unless-stopped
+
+  # Frontend React
+  web:
+    build:
+      context: ./packages/web
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./packages/web:/app
+      - /app/node_modules
+    networks:
+      - runcoach-network
+    depends_on:
+      - api
+    restart: unless-stopped
+
+networks:
+  runcoach-network:
+    driver: bridge
+
+volumes:
+  api_data:

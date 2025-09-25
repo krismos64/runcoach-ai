@@ -1,53 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import type { WorkoutData, StatsData, GoalData, UserData } from '../shared/types';
 
-export interface WorkoutData {
-  id: string;
-  date: string;
-  type: 'course' | 'fractionné' | 'endurance' | 'récupération';
-  duration: number; // en minutes
-  distance: number; // en km
-  pace: string; // format "mm:ss"
-  heartRate?: number;
-  calories?: number;
-  notes?: string;
-}
-
-export interface StatsData {
-  totalDistance: number;
-  totalWorkouts: number;
-  averagePace: string;
-  totalTime: number; // en minutes
-  currentWeekDistance: number;
-  monthlyDistances: { month: string; distance: number }[];
-  weeklyProgress: { week: string; distance: number }[];
-}
-
-export interface GoalData {
-  id: string;
-  title: string;
-  description: string;
-  targetDate: string;
-  progress: number;
-  category: string;
-  status: 'active' | 'completed' | 'paused';
-  createdDate: string;
-}
-
-export interface UserData {
-  workouts: WorkoutData[];
-  stats: StatsData;
-  goals: GoalData[];
-  trainingPlan: any[];
-  profile: {
-    name: string;
-    email: string;
-    preferences: {
-      units: 'metric' | 'imperial';
-      theme: 'light' | 'dark';
-    };
-  };
-}
+// Ré-exports pour compatibilité
+export type { WorkoutData, StatsData, GoalData, UserData } from '../shared/types';
 
 interface DataContextType {
   userData: UserData;

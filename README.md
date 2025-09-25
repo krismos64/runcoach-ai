@@ -1,59 +1,78 @@
-# 🏃‍♂️ RunCoach AI - Monorepo
+# 🏃‍♂️ RunCoach AI - Plateforme d'Entraînement Intelligente
 
-> **Architecture moderne 2024-2025** - Application d'entraînement intelligent avec IA
+> **Architecture Full-Stack 2024-2025** - Application de course à pied avec analyses IA et ML
 
 ## 📁 Structure du Projet
 
 ```
 runcoach-ai/
 ├── packages/
-│   ├── api/              # 🚀 Backend Node.js + TypeScript
-│   │   ├── src/
-│   │   │   ├── infrastructure/   # Sécurité, logging, database
-│   │   │   ├── presentation/     # Controllers, middleware, validators
-│   │   │   ├── shared/          # Configuration, erreurs, types
-│   │   │   └── routes/          # Routes avec validation + sécurité
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   └── web/              # 🎨 Frontend React + Vite
+│   ├── api/              # 🐍 Backend Python + FastAPI + IA
+│   │   ├── models/       # Modèles Pydantic
+│   │   ├── services/     # Services IA/ML (scikit-learn, TensorFlow)
+│   │   ├── database/     # Gestion données et cache
+│   │   ├── main.py       # Application FastAPI
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   └── web/              # ⚛️ Frontend React + TypeScript + Vite
 │       ├── src/
+│       │   ├── components/  # Composants UI modernes
+│       │   ├── hooks/       # Hooks IA et analytics
+│       │   ├── services/    # Integration API Python
+│       │   ├── contexts/    # État global (workouts, auth)
+│       │   └── pages/       # Pages application
 │       ├── package.json
 │       └── vite.config.ts
-├── package.json          # 📦 Configuration workspace
+├── docker-compose.yml    # Stack complète avec Python + React
 └── README.md
 ```
 
 ## 🚀 Démarrage Rapide
 
 ### Prérequis
-- **Node.js** ≥ 18.0.0
+- **Node.js** ≥ 18.0.0 (pour le frontend React)
+- **Python** ≥ 3.11 (pour l'API IA)
 - **npm** ≥ 9.0.0
-- **MongoDB** (local ou Atlas)
+- **Docker** (optionnel, recommandé pour déploiement)
 
-### Installation
+### Installation Frontend React
+
 ```bash
-# Installation des dépendances (tous les packages)
+cd packages/web
 npm install
-
-# Installation d'un package spécifique
-npm install --workspace=packages/api
-npm install --workspace=packages/web
+npm run dev
+# Accès frontend : http://localhost:5173
 ```
 
-### Développement
+### Installation Backend Python IA
 
 ```bash
-# Démarrer l'API uniquement (port 3001)
-npm run dev:api
+cd packages/api
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-# Démarrer le frontend uniquement (port 3000)
-npm run dev:web
+# Configurer l'environnement
+cp .env.example .env
 
-# Démarrer API + Frontend simultanément
-npm run dev:all
+# Lancer l'API IA
+uvicorn main:app --reload
+# Accès API : http://localhost:8000
+```
 
-# Démarrage par défaut (API seulement)
+### Développement Full-Stack
+
+```bash
+# Terminal 1 - Backend Python
+cd packages/api
+uvicorn main:app --reload
+
+# Terminal 2 - Frontend React
+cd packages/web
 npm run dev
+
+# Ou avec Docker (stack complète)
+docker-compose up --build
 ```
 
 ### Production
