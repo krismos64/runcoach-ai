@@ -16,7 +16,11 @@ import {
   RefreshCw,
   Play,
   Activity,
-  Heart
+  Heart,
+  Sparkles,
+  Zap,
+  Brain,
+  Shield
 } from 'lucide-react';
 
 interface ImportFile {
@@ -525,7 +529,7 @@ const ImportData: React.FC = () => {
       case 'error':
         return <AlertCircle className="w-5 h-5 text-red-500" />;
       case 'processing':
-        return <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />;
+        return <RefreshCw className="w-5 h-5 text-emerald-500 animate-spin" />;
       default:
         return <FileText className="w-5 h-5 text-gray-400" />;
     }
@@ -545,18 +549,49 @@ const ImportData: React.FC = () => {
         <link rel="canonical" href="/import" />
       </Helmet>
 
-      <div className="space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-800 text-white relative overflow-hidden space-y-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
+          className="text-center space-y-6 pt-8"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Importer vos données
+          <div className="relative">
+            <motion.div
+              animate={{
+                rotate: [0, 5, -5, 0],
+                scale: [1, 1.05, 1]
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                repeatType: "reverse"
+              }}
+              className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/25"
+            >
+              <Upload className="w-8 h-8 text-white" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [-2, 2, -2] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center"
+            >
+              <Sparkles className="w-3 h-3 text-white" />
+            </motion.div>
+          </div>
+
+          <h1 className="text-5xl font-bold">
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-800 bg-clip-text text-transparent">
+              Importer vos données
+            </span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Importez facilement vos données d'entraînement depuis vos appareils et applications préférées
+
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+            Synchronisez facilement vos données d'entraînement depuis vos appareils et applications préférées.
+            <span className="block text-lg text-emerald-400 font-medium mt-2">
+              🚀 Intelligence artificielle • 📊 Analyses avancées • ⚡ Import instantané
+            </span>
           </p>
         </motion.div>
 
@@ -565,48 +600,67 @@ const ImportData: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20"
+          className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20 mx-4"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Sources de données supportées</h3>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Sources de données supportées</h3>
+                <p className="text-gray-300">Connectez-vous à vos applications préférées</p>
+              </div>
+            </div>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="w-8 h-8 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full flex items-center justify-center"
+            >
+              <Zap className="w-4 h-4 text-white" />
+            </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {dataSources.map((source) => {
               const Icon = source.icon;
               return (
-                <button
+                <motion.button
                   key={source.id}
                   onClick={() => setSelectedSource(source.id)}
                   disabled={!source.supported}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
+                  whileHover={source.supported ? { scale: 1.02, y: -2 } : {}}
+                  whileTap={source.supported ? { scale: 0.98 } : {}}
+                  className={`group p-6 rounded-2xl border-2 transition-all duration-300 text-left relative overflow-hidden ${
                     selectedSource === source.id
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-emerald-500 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 shadow-lg shadow-emerald-500/25'
                       : source.supported
-                      ? 'border-gray-200 hover:border-gray-300 bg-white'
-                      : 'border-gray-100 bg-gray-50 opacity-50'
+                      ? 'border-gray-600 hover:border-emerald-400 bg-white/5 hover:bg-white/10 hover:shadow-xl hover:shadow-emerald-400/25'
+                      : 'border-gray-700 bg-gray-800/20 opacity-50'
                   }`}
                 >
                   <div className="flex items-center space-x-3 mb-2">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      selectedSource === source.id ? 'bg-blue-500' : 'bg-gray-200'
+                      selectedSource === source.id ? 'bg-emerald-500' : 'bg-gray-200'
                     }`}>
                       <Icon className={`w-5 h-5 ${
                         selectedSource === source.id ? 'text-white' : 'text-gray-600'
                       }`} />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">{source.name}</h4>
+                      <h4 className="font-semibold text-white">{source.name}</h4>
                       {!source.supported && (
                         <span className="text-xs text-orange-600 font-medium">Bientôt disponible</span>
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{source.description}</p>
+                  <p className="text-sm text-gray-300">{source.description}</p>
                   <div className="mt-2">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-400">
                       Formats: {source.fileTypes.join(', ')}
                     </p>
                   </div>
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -618,15 +672,15 @@ const ImportData: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-blue-50 rounded-2xl p-6 border border-blue-200"
+            className="bg-emerald-900/30 rounded-2xl p-6 border border-emerald-500/30"
           >
             <div className="flex items-start space-x-4">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Smartphone className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">Comment exporter vos données Apple Health</h3>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                <h3 className="text-lg font-semibold text-emerald-300 mb-2">Comment exporter vos données Apple Health</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-emerald-200">
                   <li>Ouvrez l'app <strong>Santé</strong> sur votre iPhone</li>
                   <li>Appuyez sur votre photo de profil en haut à droite</li>
                   <li>Sélectionnez <strong>"Exporter toutes les données de santé"</strong></li>
@@ -635,7 +689,7 @@ const ImportData: React.FC = () => {
                 </ol>
                 <div className="mt-4 flex items-center space-x-2">
                   <Download className="w-4 h-4 text-blue-600" />
-                  <a href="#" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  <a href="#" className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
                     Guide détaillé avec captures d'écran
                   </a>
                 </div>
@@ -649,28 +703,71 @@ const ImportData: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white/80 backdrop-blur-lg rounded-2xl p-8 shadow-lg border border-white/20"
+          className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20 mx-4"
         >
-          <div
+          <motion.div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+            animate={isDragOver ? {
+              scale: 1.02,
+              borderWidth: 3,
+              transition: { duration: 0.2 }
+            } : {}}
+            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 overflow-hidden ${
               isDragOver
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
+                ? 'border-emerald-400 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 shadow-inner'
+                : 'border-gray-600 hover:border-emerald-400 hover:bg-gradient-to-br hover:from-gray-800/50 hover:to-emerald-800/30'
             }`}
           >
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Upload className="w-8 h-8 text-blue-600" />
-              </div>
+            {/* Animated background elements */}
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                rotate: [0, 180, 360],
+                opacity: [0.1, 0.3, 0.1]
+              }}
+              transition={{ duration: 8, repeat: Infinity }}
+              className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 rounded-2xl"
+            />
 
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Glissez-déposez vos fichiers ici
+            <motion.div
+              animate={{
+                y: [-20, 20, -20]
+              }}
+              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-r from-yellow-400 to-emerald-500 rounded-full opacity-20"
+            />
+
+            <motion.div
+              animate={{
+                x: [-30, 30, -30]
+              }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="absolute bottom-4 left-4 w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full opacity-20"
+            />
+            <div className="max-w-md mx-auto relative z-10">
+              <motion.div
+                animate={isDragOver ? {
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                } : {
+                  y: [-5, 5, -5]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/25"
+              >
+                <Upload className="w-10 h-10 text-white" />
+              </motion.div>
+
+              <h3 className="text-2xl font-bold text-white mb-3">
+                {isDragOver ? '🎯 Déposez vos fichiers ici !' : '📁 Glissez-déposez vos fichiers'}
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-300 mb-6 text-lg">
                 ou cliquez pour sélectionner des fichiers
+                <span className="block text-sm text-teal-400 font-medium mt-1">
+                  ⚡ Traitement instantané avec IA
+                </span>
               </p>
 
               <input
@@ -681,19 +778,37 @@ const ImportData: React.FC = () => {
                 className="hidden"
                 id="file-upload"
               />
-              <label
+              <motion.label
                 htmlFor="file-upload"
-                className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium cursor-pointer transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="inline-flex items-center space-x-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-8 py-4 rounded-xl font-semibold cursor-pointer transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-teal-500/25"
               >
-                <Upload className="w-5 h-5" />
+                <Upload className="w-6 h-6" />
                 <span>Sélectionner des fichiers</span>
-              </label>
+                <Sparkles className="w-4 h-4" />
+              </motion.label>
 
-              <p className="text-xs text-gray-500 mt-4">
-                Formats supportés: XML, ZIP, FIT, TCX, GPX (max 100MB par fichier)
-              </p>
+              <div className="mt-6 p-4 bg-gradient-to-r from-gray-800/50 to-emerald-800/30 rounded-xl border border-gray-600">
+                <div className="flex items-center justify-center space-x-4 text-sm">
+                  <div className="flex items-center space-x-1">
+                    <Brain className="w-4 h-4 text-teal-600" />
+                    <span className="text-gray-300">Formats supportés:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {['XML', 'ZIP', 'FIT', 'TCX', 'GPX', 'CSV'].map((format) => (
+                      <span key={format} className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md font-medium text-xs">
+                        {format}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  📦 Max 100MB par fichier • 🚀 Traitement intelligent
+                </p>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
 
         {/* File List */}
@@ -703,14 +818,14 @@ const ImportData: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20"
+              className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-white">
                   Fichiers à traiter ({files.length})
                 </h3>
                 {isProcessing && (
-                  <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="flex items-center space-x-2 text-emerald-400">
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     <span className="text-sm">Traitement en cours...</span>
                   </div>
@@ -722,14 +837,14 @@ const ImportData: React.FC = () => {
                   <motion.div
                     key={file.id}
                     layout
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
                   >
                     <div className="flex items-center space-x-4 flex-1">
                       {getStatusIcon(file.status)}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-gray-900">{file.name}</h4>
-                          <span className="text-sm text-gray-500">{formatFileSize(file.size)}</span>
+                          <h4 className="font-medium text-white">{file.name}</h4>
+                          <span className="text-sm text-gray-400">{formatFileSize(file.size)}</span>
                         </div>
 
                         {file.status === 'processing' && (
@@ -738,36 +853,36 @@ const ImportData: React.FC = () => {
                               <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${file.progress}%` }}
-                                className="bg-blue-600 h-2 rounded-full"
+                                className="bg-emerald-600 h-2 rounded-full"
                               />
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{file.progress}% traité</p>
+                            <p className="text-sm text-gray-300 mt-1">{file.progress}% traité</p>
                           </div>
                         )}
 
                         {file.status === 'success' && file.data && (
                           <div className="mt-2 grid grid-cols-4 gap-4 text-sm">
                             <div>
-                              <span className="text-gray-600">Séances:</span>
+                              <span className="text-gray-400">Séances:</span>
                               <span className="font-medium ml-1">{file.data.workouts}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Distance:</span>
+                              <span className="text-gray-400">Distance:</span>
                               <span className="font-medium ml-1">{file.data.distance} km</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Période:</span>
+                              <span className="text-gray-400">Période:</span>
                               <span className="font-medium ml-1">{file.data.startDate} - {file.data.endDate}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Temps:</span>
+                              <span className="text-gray-400">Temps:</span>
                               <span className="font-medium ml-1">{Math.floor(file.data.duration / 60)}h</span>
                             </div>
                           </div>
                         )}
 
                         {file.status === 'error' && (
-                          <p className="text-sm text-red-600 mt-1">{file.error}</p>
+                          <p className="text-sm text-red-400 mt-1">{file.error}</p>
                         )}
                       </div>
                     </div>
@@ -776,7 +891,7 @@ const ImportData: React.FC = () => {
                       {file.status === 'error' && (
                         <button
                           onClick={() => retryFile(file.id)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors"
                           title="Réessayer"
                         >
                           <RefreshCw className="w-4 h-4" />
@@ -801,17 +916,51 @@ const ImportData: React.FC = () => {
         <AnimatePresence>
           {successfulFiles.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white shadow-2xl"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="relative overflow-hidden bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-3xl p-8 text-white shadow-2xl border border-green-400/20 mx-4"
             >
-              <div className="flex items-center justify-between mb-6">
+              {/* Animated background patterns */}
+              <motion.div
+                animate={{
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 90, 180, 270, 360],
+                  opacity: [0.1, 0.2, 0.1]
+                }}
+                transition={{ duration: 20, repeat: Infinity }}
+                className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full"
+              />
+
+              <motion.div
+                animate={{
+                  x: [-20, 20, -20],
+                  y: [-10, 10, -10]
+                }}
+                transition={{ duration: 6, repeat: Infinity }}
+                className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full"
+              />
+              <div className="relative z-10 flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-2xl font-bold">Import réussi !</h3>
-                  <p className="text-green-100">Vos données ont été importées avec succès</p>
+                  <motion.h3
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    className="text-3xl font-bold mb-2 flex items-center space-x-2"
+                  >
+                    <span>🎉 Import réussi !</span>
+                  </motion.h3>
+                  <p className="text-green-100 text-lg">Vos données ont été importées et analysées avec succès</p>
                 </div>
-                <CheckCircle className="w-12 h-12 text-white" />
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 360]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm"
+                >
+                  <CheckCircle className="w-8 h-8 text-white" />
+                </motion.div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -833,14 +982,29 @@ const ImportData: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-green-100">
-                  Vos données sont maintenant disponibles dans votre tableau de bord
-                </p>
-                <button className="bg-white/20 hover:bg-white/30 px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2">
-                  <Play className="w-5 h-5" />
-                  <span>Voir le dashboard</span>
-                </button>
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-lg mb-1">
+                    Vos données sont maintenant disponibles dans votre tableau de bord
+                  </p>
+                  <p className="text-green-200 text-sm">
+                    🧠 Analyses IA • 📈 Tendances • 🎯 Recommandations personnalisées
+                  </p>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05, x: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-8 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center space-x-3 shadow-lg hover:shadow-xl"
+                >
+                  <Play className="w-6 h-6" />
+                  <span className="text-lg">Voir le dashboard</span>
+                  <motion.div
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </motion.div>
+                </motion.button>
               </div>
             </motion.div>
           )}
