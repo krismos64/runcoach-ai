@@ -140,6 +140,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .filter(w => new Date(w.date) >= weekStart)
       .reduce((sum, w) => sum + w.distance, 0);
 
+    // 🚀 NOUVELLES STATISTIQUES ÉTENDUES
+
+    // Dénivelé total
+    const totalElevationGain = workouts
+      .filter(w => w.elevation?.gain)
+      .reduce((sum, w) => sum + (w.elevation?.gain || 0), 0);
+
+    // Cadence moyenne
+    const workoutsWithCadence = workouts.filter(w => w.cadence);
+    const averageCadence = workoutsWithCadence.length > 0
+      ? Math.round(workoutsWithCadence.reduce((sum, w) => sum + (w.cadence || 0), 0) / workoutsWithCadence.length)
+      : undefined;
+
+    // Puissance moyenne
+    const workoutsWithPower = workouts.filter(w => w.power);
+    const averagePower = workoutsWithPower.length > 0
+      ? Math.round(workoutsWithPower.reduce((sum, w) => sum + (w.power || 0), 0) / workoutsWithPower.length)
+      : undefined;
+
+    // FC moyenne
+    const workoutsWithHR = workouts.filter(w => w.heartRate);
+    const averageHeartRate = workoutsWithHR.length > 0
+      ? Math.round(workoutsWithHR.reduce((sum, w) => sum + (w.heartRate || 0), 0) / workoutsWithHR.length)
+      : undefined;
+
+    // Statistiques météo
+    const weatherStats = {
+      clearDays: workouts.filter(w => w.weather?.condition?.toLowerCase().includes('clear')).length,
+      rainyDays: workouts.filter(w => w.weather?.condition?.toLowerCase().includes('rain')).length,
+      coldRuns: workouts.filter(w => w.weather?.temperature && w.weather.temperature < 10).length,
+      hotRuns: workouts.filter(w => w.weather?.temperature && w.weather.temperature > 25).length,
+    };
+
+    // Métriques de performance
+    const paceSeconds = workouts.map(w => {
+      const [min, sec] = w.pace.split(':').map(Number);
+      return min * 60 + sec;
+    });
+    const bestPaceSeconds = Math.min(...paceSeconds);
+    const bestPaceMin = Math.floor(bestPaceSeconds / 60);
+    const bestPaceSec = bestPaceSeconds % 60;
+    const bestPace = `${bestPaceMin}:${Math.floor(bestPaceSec).toString().padStart(2, '0')}`;
+
+    const performanceMetrics = {
+      bestPace,
+      longestRun: Math.max(...workouts.map(w => w.distance)),
+      highestPower: Math.max(...workouts.filter(w => w.power).map(w => w.power || 0)),
+      maxElevationGain: Math.max(...workouts.filter(w => w.elevation?.gain).map(w => w.elevation?.gain || 0))
+    };
+
     return {
       totalDistance,
       totalWorkouts,
@@ -147,7 +197,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalTime,
       currentWeekDistance,
       monthlyDistances: [], // À calculer selon les besoins
-      weeklyProgress: [] // À calculer selon les besoins
+      weeklyProgress: [], // À calculer selon les besoins
+
+      // Nouvelles statistiques
+      totalElevationGain: totalElevationGain > 0 ? totalElevationGain : undefined,
+      averageCadence,
+      averagePower,
+      averageHeartRate,
+      weatherStats: weatherStats.clearDays + weatherStats.rainyDays + weatherStats.coldRuns + weatherStats.hotRuns > 0
+        ? weatherStats
+        : undefined,
+      performanceMetrics
     };
   };
 

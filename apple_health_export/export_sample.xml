@@ -11,9 +11,9 @@
            totalDistanceUnit="km"
            totalEnergyBurned="285"
            totalEnergyBurnedUnit="kcal"
-           sourceName="iPhone de Christophe"
-           sourceVersion="17.2.1"
-           device="&lt;&lt;HKDevice: 0x123456789&gt;&gt;"
+           sourceName="Apple Watch Ultra"
+           sourceVersion="10.2.1"
+           device="&lt;&lt;HKDevice: Apple Watch Ultra&gt;&gt;"
            creationDate="2024-01-15 08:45:23 +0100"
            startDate="2024-01-15 08:00:00 +0100"
            endDate="2024-01-15 08:32:30 +0100">
@@ -21,6 +21,10 @@
     <WorkoutEvent type="HKWorkoutEventTypeResume" date="2024-01-15 08:16:00 +0100"/>
     <MetadataEntry key="HKMetadataKeyWeatherCondition" value="HKWeatherConditionClear"/>
     <MetadataEntry key="HKMetadataKeyWeatherTemperature" value="12 °C"/>
+    <MetadataEntry key="HKMetadataKeyWeatherHumidity" value="65 %"/>
+    <MetadataEntry key="HKQuantityTypeIdentifierStepCount" value="6240"/>
+    <MetadataEntry key="HKQuantityTypeIdentifierRunningPower" value="245 watts"/>
+    <MetadataEntry key="HKQuantityTypeIdentifierRunningStrideLength" value="1.32 m"/>
   </Workout>
 
   <!-- Exemple d'entraînement de marche -->
@@ -65,7 +69,13 @@
            sourceVersion="285.0"
            creationDate="2024-01-12 07:45:30 +0100"
            startDate="2024-01-12 07:15:00 +0100"
-           endDate="2024-01-12 07:43:12 +0100"/>
+           endDate="2024-01-12 07:43:12 +0100">
+    <MetadataEntry key="HKMetadataKeyWeatherCondition" value="HKWeatherConditionRain"/>
+    <MetadataEntry key="HKMetadataKeyWeatherTemperature" value="8 °C"/>
+    <MetadataEntry key="HKMetadataKeyWeatherHumidity" value="85 %"/>
+    <MetadataEntry key="HKQuantityTypeIdentifierStepCount" value="5400"/>
+    <MetadataEntry key="HKQuantityTypeIdentifierRunningPower" value="268 watts"/>
+  </Workout>
 
   <!-- Données de fréquence cardiaque pendant le premier workout (08:00-08:32) -->
   <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Apple Watch" unit="count/min"

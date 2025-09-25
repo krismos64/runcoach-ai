@@ -79,8 +79,13 @@ const parseGPXFile = (xmlContent: string): WorkoutData[] => {
       const end = new Date(endTime);
       const duration = Math.round((end.getTime() - start.getTime()) / 1000 / 60); // en minutes
 
-      // Calcul de la distance
+      // Calcul de la distance et du dénivelé
       let totalDistance = 0;
+      let elevationGain = 0;
+      let elevationLoss = 0;
+      let maxElevation = -Infinity;
+      let minElevation = Infinity;
+
       for (let k = 1; k < points.length; k++) {
         const prevPoint = points[k - 1];
         const currPoint = points[k];
@@ -89,6 +94,22 @@ const parseGPXFile = (xmlContent: string): WorkoutData[] => {
         const lon1 = parseFloat(prevPoint.getAttribute('lon') || '0');
         const lat2 = parseFloat(currPoint.getAttribute('lat') || '0');
         const lon2 = parseFloat(currPoint.getAttribute('lon') || '0');
+
+        // Altitudes
+        const prevEle = parseFloat(prevPoint.getElementsByTagName('ele')[0]?.textContent || '0');
+        const currEle = parseFloat(currPoint.getElementsByTagName('ele')[0]?.textContent || '0');
+
+        // Mettre à jour min/max altitude
+        if (currEle > maxElevation) maxElevation = currEle;
+        if (currEle < minElevation) minElevation = currEle;
+
+        // Calculer dénivelé
+        const elevationDiff = currEle - prevEle;
+        if (elevationDiff > 0) {
+          elevationGain += elevationDiff;
+        } else {
+          elevationLoss += Math.abs(elevationDiff);
+        }
 
         // Formule de Haversine pour calculer la distance
         const R = 6371; // Rayon de la Terre en km
@@ -107,6 +128,17 @@ const parseGPXFile = (xmlContent: string): WorkoutData[] => {
       const paceSec = Math.round((paceMinPerKm - paceMin) * 60);
       const pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
 
+      // Données d'altitude (seulement si disponibles)
+      let elevation: any = undefined;
+      if (maxElevation !== -Infinity && minElevation !== Infinity) {
+        elevation = {
+          gain: Math.round(elevationGain),
+          loss: Math.round(elevationLoss),
+          max: Math.round(maxElevation),
+          min: Math.round(minElevation)
+        };
+      }
+
       const workout: WorkoutData = {
         id: `gpx_${Date.now()}_${i}_${j}`,
         date: start.toISOString().split('T')[0],
@@ -114,6 +146,7 @@ const parseGPXFile = (xmlContent: string): WorkoutData[] => {
         duration,
         distance: Math.round(totalDistance * 100) / 100,
         pace,
+        elevation: elevation,
         notes: `Importé depuis GPX - ${track.getElementsByTagName('name')[0]?.textContent || 'Entraînement'}`
       };
 
@@ -316,6 +349,79 @@ const parseAppleHealthXML = (xmlContent: string): WorkoutData[] => {
       avgHeartRate = Math.round(totalHeartRate / workoutHeartRates.length);
     }
 
+    // Extraire les métadonnées étendues
+    const metadataEntries = workout.getElementsByTagName('MetadataEntry');
+    let weather: any = undefined;
+    let cadence: number | undefined;
+    let power: number | undefined;
+
+    for (let j = 0; j < metadataEntries.length; j++) {
+      const entry = metadataEntries[j];
+      const key = entry.getAttribute('key') || '';
+      const value = entry.getAttribute('value') || '';
+
+      switch (key) {
+        case 'HKMetadataKeyWeatherCondition':
+          if (!weather) weather = {};
+          // Convertir les constantes Apple Health vers du texte lisible
+          weather.condition = value
+            .replace('HKWeatherCondition', '')
+            .replace(/([A-Z])/g, ' $1')
+            .trim();
+          break;
+
+        case 'HKMetadataKeyWeatherTemperature':
+          if (!weather) weather = {};
+          // Extraire la température (format "12 °C")
+          const tempMatch = value.match(/(-?\d+(?:\.\d+)?)/);
+          if (tempMatch) {
+            weather.temperature = parseFloat(tempMatch[1]);
+          }
+          break;
+
+        case 'HKMetadataKeyWeatherHumidity':
+          if (!weather) weather = {};
+          // Extraire l'humidité (format "65 %")
+          const humidityMatch = value.match(/(\d+(?:\.\d+)?)/);
+          if (humidityMatch) {
+            weather.humidity = parseFloat(humidityMatch[1]);
+          }
+          break;
+
+        case 'HKQuantityTypeIdentifierRunningStrideLength':
+        case 'HKQuantityTypeIdentifierRunningSpeed':
+        case 'HKQuantityTypeIdentifierStepCount':
+          // Calculer la cadence si on a le nombre de pas
+          if (key === 'HKQuantityTypeIdentifierStepCount') {
+            const steps = parseFloat(value);
+            if (steps > 0 && duration > 0) {
+              cadence = Math.round(steps / duration); // pas par minute
+            }
+          }
+          break;
+
+        case 'HKQuantityTypeIdentifierRunningPower':
+          const powerMatch = value.match(/(\d+(?:\.\d+)?)/);
+          if (powerMatch) {
+            power = Math.round(parseFloat(powerMatch[1]));
+          }
+          break;
+      }
+    }
+
+    // Extraire les informations de source et device
+    const source = workout.getAttribute('sourceName') || undefined;
+    const sourceVersion = workout.getAttribute('sourceVersion');
+    const device = workout.getAttribute('device');
+
+    let deviceInfo: string | undefined;
+    if (device && device !== '<<HKDevice: 0x123456789>>') {
+      deviceInfo = device.replace(/<<HKDevice: [^>]+>>/g, '').trim();
+    }
+    if (sourceVersion && source) {
+      deviceInfo = `${source} ${sourceVersion}`;
+    }
+
     const workoutData: WorkoutData = {
       id: `apple_health_${Date.now()}_${i}`,
       date: new Date(startDate).toISOString().split('T')[0],
@@ -325,7 +431,14 @@ const parseAppleHealthXML = (xmlContent: string): WorkoutData[] => {
       pace,
       heartRate: avgHeartRate,
       calories: totalEnergyBurned > 0 ? Math.round(totalEnergyBurned) : undefined,
-      notes: `Importé depuis Apple Health - ${workoutType}`
+      notes: `Importé depuis Apple Health - ${workoutType}`,
+
+      // Données étendues
+      weather: weather,
+      cadence: cadence,
+      power: power,
+      source: source,
+      deviceInfo: deviceInfo
     };
 
     workouts.push(workoutData);

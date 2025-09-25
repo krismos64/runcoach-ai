@@ -53,6 +53,33 @@ Le fichier principal contient :
 
 ### ✅ **Résultat attendu** :
 Quand vous importez le ZIP, vous obtenez des workouts avec :
-- Métadonnées Apple Health (calories, FC, source)
-- Précision GPS des parcours (distance/pace exacts)
-- Notes indiquant l'enrichissement des données
+
+**📊 Données de base** :
+- Date, durée, distance, pace, calories
+- Fréquence cardiaque moyenne
+
+**🌤️ Données météo** :
+- Conditions météo (Clear, Rain, Snow, etc.)
+- Température en Celsius
+- Humidité en %
+
+**🏃 Données performance** :
+- Cadence (pas/minute calculés depuis StepCount)
+- Puissance de course (watts)
+- Source (Apple Watch, Strava, etc.)
+
+**🏔️ Données GPS/altitude** :
+- Dénivelé positif et négatif (m)
+- Altitude min/max (m)
+- Distance/pace recalculés avec précision GPS
+
+**🔧 Données techniques** :
+- Informations device/version
+- Enrichissement automatique XML + GPX
+
+### 📈 **Utilisation dans l'application** :
+Toutes ces données sont automatiquement :
+- ✅ Intégrées dans les statistiques utilisateur
+- ✅ Disponibles pour les analyses IA
+- ✅ Affichées dans l'interface (si implémentée)
+- ✅ Utilisées pour le suivi des performances

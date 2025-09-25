@@ -9,6 +9,30 @@ export interface WorkoutData {
   heartRate?: number;
   calories?: number;
   notes?: string;
+
+  // Données étendues Apple Health
+  weather?: {
+    condition: string; // Clear, Rain, Snow, etc.
+    temperature?: number; // en Celsius
+    humidity?: number; // en %
+  };
+  cadence?: number; // pas par minute
+  power?: number; // puissance en watts
+  heartRateZones?: {
+    zone1: number; // % temps en zone 1
+    zone2: number; // % temps en zone 2
+    zone3: number; // % temps en zone 3
+    zone4: number; // % temps en zone 4
+    zone5?: number; // % temps en zone 5
+  };
+  elevation?: {
+    gain: number; // dénivelé positif en m
+    loss: number; // dénivelé négatif en m
+    max: number; // altitude max en m
+    min: number; // altitude min en m
+  };
+  source?: string; // iPhone, Apple Watch, Strava, etc.
+  deviceInfo?: string; // Info sur l'appareil utilisé
 }
 
 export interface StatsData {
@@ -19,6 +43,24 @@ export interface StatsData {
   currentWeekDistance: number;
   monthlyDistances: { month: string; distance: number }[];
   weeklyProgress: { week: string; distance: number }[];
+
+  // Nouvelles statistiques étendues
+  totalElevationGain?: number; // dénivelé total en m
+  averageCadence?: number; // cadence moyenne
+  averagePower?: number; // puissance moyenne en watts
+  averageHeartRate?: number; // FC moyenne
+  weatherStats?: {
+    clearDays: number;
+    rainyDays: number;
+    coldRuns: number; // < 10°C
+    hotRuns: number;  // > 25°C
+  };
+  performanceMetrics?: {
+    bestPace: string;
+    longestRun: number; // km
+    highestPower: number; // watts
+    maxElevationGain: number; // m
+  };
 }
 
 export interface GoalData {
@@ -40,11 +82,48 @@ export interface UserData {
   profile: {
     name: string;
     email: string;
+    // Données corporelles et démographiques
+    age?: number;
+    weight?: number; // en kg
+    height?: number; // en cm
+    sex?: 'male' | 'female' | 'other';
+    activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extremely_active';
+    runningExperience?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+    // Calculés automatiquement
+    bmi?: number;
     preferences: {
       units: 'metric' | 'imperial';
       theme: 'light' | 'dark';
+      coachPersonality?: 'motivational' | 'analytical' | 'friendly' | 'professional';
     };
   };
+}
+
+// Types pour le chatbot IA
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'coach';
+  content: string;
+  timestamp: Date;
+  analysis?: CoachAnalysis;
+  suggestions?: string[];
+}
+
+export interface CoachAnalysis {
+  userPerformanceVsBenchmark: {
+    pacePercentile: number;
+    distancePercentile: number;
+    consistencyScore: number;
+  };
+  personalizedInsights: string[];
+  recommendations: {
+    training: string[];
+    recovery: string[];
+    nutrition: string[];
+    goals: string[];
+  };
+  motivationalMessage: string;
+  riskFactors?: string[];
 }
 
 // Interfaces pour l'analyse avancée
